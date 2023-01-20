@@ -139,6 +139,14 @@ namespace GoldenKeyMK3.Script
                 DrawTextPro(Program.MainFont, option.Name, center, origin, theta, 24, 0, Color.BLACK);
                 currAngle += unitAngle * option.Count;
             }
+
+            Vector2[] vtx =
+            {
+                new Vector2(GetScreenWidth() * 0.3f - 20, GetScreenHeight() * 0.125f - 20),
+                new Vector2(GetScreenWidth() * 0.3f, GetScreenHeight() * 0.125f + 20),
+                new Vector2(GetScreenWidth() * 0.3f + 20, GetScreenHeight() * 0.125f - 20),
+            };
+            DrawTriangle(vtx[0], vtx[1], vtx[2], Color.BLACK);
         }
 
         private static void DrawButton(bool shutdownRequest)

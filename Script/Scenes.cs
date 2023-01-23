@@ -4,6 +4,7 @@ namespace GoldenKeyMK3.Script
      * Scripts for scenes
      * Intro.cs => Scene.Intro
      * Login.cs => Scene.Login
+     * LoadScene.cs => Scene.Load
      * MainScene.cs => Scene.Main
      */
 
@@ -28,7 +29,8 @@ namespace GoldenKeyMK3.Script
                     break;
                 case Scene.Login:
                     if (Login.DrawLogin(shutdownRequest))
-                        _currScene = Directory.Exists("Logs") ? Scene.Load : Scene.Main;
+                        _currScene = Directory.Exists("Logs") && Directory.GetFiles("Logs").Any()
+                            ? Scene.Load : Scene.Main;
                     //{
                     //    //Login.Connect();
                     //    _currScene = Scene.Load;

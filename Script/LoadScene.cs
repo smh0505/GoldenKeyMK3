@@ -6,50 +6,51 @@ namespace GoldenKeyMK3.Script
 {
     public class LoadScene
     {
-        private static List<string> _logs;
+        private static List<string> _files;
         private static int _idx;
         private static int _count;
-        private static int _page;
+        private static int _frames;
 
         public static void DrawLoad(bool shutdownRequest)
         {
-            _logs = new (){"Default"};
-            _logs.AddRange(Directory.GetFiles("Logs"));
+            _count = (int)Math.Floor((GetScreenHeight() - 80) / 48.0f);
+            _files = new List<string>() { "default" };
+            _files.AddRange(Directory.GetFiles("Logs"));
 
             if (!shutdownRequest) Control();
 
-            DrawRectangle(40, 40, 480, 48, Color.WHITE);
-            BeginScissorMode(40, 40, 480, 48);
-            DrawTextEx(Program.MainFont, _logs[_idx], new Vector2(46, 46), 36, 0, Color.BLACK);
-            EndScissorMode();
-
-            _count = (int)Math.Floor((GetScreenHeight() - 154) / 48.0f);
-            _page = 0;
-            DrawRectangle(40, 114, 480, GetScreenHeight() - 154, Color.WHITE);
-            BeginScissorMode(40, 114, 480, GetScreenHeight() - 154);
-            for (int i = 0; i < _logs.Count; i++)
+            DrawRectangle(40, 40, 480, GetScreenHeight() - 80, Color.WHITE);
+            BeginScissorMode(40, 40, 480, GetScreenHeight() - 80);
+            for (int j = 0; j < _files.Count; j++)
             {
-                Vector2 pos = new (46, 120 + 48 * i);
-                DrawTextEx(Program.MainFont, _logs[i], pos, 36, 0, Color.BLACK);
+                Color textColor = Color.BLACK;
+                if (j == _idx) 
+                {
+                    DrawRectangle(40, 40 + 48 * j, 480, 48, Color.DARKGRAY);
+                    textColor = Color.WHITE;
+                }
+
+                Vector2 pos = new(46, 46 + 48 * j);
+                DrawTextEx(Program.MainFont, _files[j], pos, 36, 0, textColor);
             }
             EndScissorMode();
         }
 
         private static void Control()
         {
-            switch ((KeyboardKey)GetKeyPressed())
+            if (IsKeyDown(KeyboardKey.KEY_UP) || IsKeyDown(KeyboardKey.KEY_W))
             {
-                case KeyboardKey.KEY_UP:
-                case KeyboardKey.KEY_W:
-                case KeyboardKey.KEY_PAGE_UP:
-                    _idx = _idx == 0 ? _logs.Count - 1 : _idx - 1;
-                    break;
-                case KeyboardKey.KEY_DOWN:
-                case KeyboardKey.KEY_S:
-                case KeyboardKey.KEY_PAGE_DOWN:
-                    _idx = _idx == _logs.Count - 1 ? 0 : _idx + 1;
-                    break;
+                if (_frames == 0) _idx = _idx == 0 ? _files.Count - 1 : _idx - 1;
+                _frames = _frames == 5 ? 0 : _frames + 1;
             }
+            if (IsKeyDown(KeyboardKey.KEY_DOWN) || IsKeyDown(KeyboardKey.KEY_S))
+            {
+                if (_frames == 0) _idx = _idx == _files.Count - 1 ? 0 : _idx + 1;
+                _frames = _frames == 5 ? 0 : _frames + 1;
+            }
+            if (IsKeyUp(KeyboardKey.KEY_UP) && IsKeyUp(KeyboardKey.KEY_W) 
+                && IsKeyUp(KeyboardKey.KEY_DOWN) && IsKeyUp(KeyboardKey.KEY_S))
+                _frames = 0;
         }
     }
 }

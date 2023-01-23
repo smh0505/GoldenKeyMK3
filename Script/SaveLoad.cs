@@ -35,7 +35,7 @@ namespace GoldenKeyMK3.Script
             }
         }
 
-        public static void LoadLog(string filename)
+        public static List<WheelPanel> LoadLog(string filename)
         {
             StreamReader r = new StreamReader(filename);
             var data = r.ReadToEnd();
@@ -44,8 +44,7 @@ namespace GoldenKeyMK3.Script
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
-            Wheel.Options = deserializer.Deserialize<List<WheelPanel>>(data);
-            Wheel.Waitlist.Clear();
+            return deserializer.Deserialize<List<WheelPanel>>(data);
         }
 
         public static void SaveLog()
@@ -55,8 +54,6 @@ namespace GoldenKeyMK3.Script
                 // Create Log File
                 Directory.CreateDirectory("Logs");
                 var time = DateTime.Now.ToString("s").Replace(':', '-').Replace('T', '-');
-                var filename = $"Logs/log-{time}.yml";
-                using FileStream file = File.Create(filename);
 
                 // Serialize Log
                 var serializer = new SerializerBuilder()
@@ -65,9 +62,16 @@ namespace GoldenKeyMK3.Script
                 var optionList = serializer.Serialize(Wheel.Options);
 
                 // Write Log File
-                StreamWriter w = new StreamWriter(file);
-                w.Write(optionList);
-                w.Close();
+                for (int i = 0; i < 100; i++)
+                {
+                    var filename = $"Logs/log-{time}-{i:000}.yml";
+
+                    using FileStream file = File.Create(filename);
+                    StreamWriter w = new StreamWriter(file);
+                    w.Write(optionList);
+                    w.Close();
+                }
+
             }
         }
     }

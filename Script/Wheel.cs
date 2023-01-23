@@ -32,11 +32,11 @@ namespace GoldenKeyMK3.Script
         public static ConcurrentBag<string> Waitlist = new ConcurrentBag<string>();
         public static List<WheelPanel> Options = new List<WheelPanel>();
         public static int Sum => Options.Sum(option => option.Count);
+
         private static WheelState _state = WheelState.Idle;
         private static float _startAngle;
         private static float _diffAngle = 50.0f;
         private static readonly Random Rnd = new Random();
-
         private static readonly Dictionary<WheelState, string> ButtonPool = new Dictionary<WheelState, string>
         {
             {WheelState.Idle, "돌리기"},

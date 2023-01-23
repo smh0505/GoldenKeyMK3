@@ -16,7 +16,7 @@ namespace GoldenKeyMK3
             InitWindow(1920, 1080, "황금열쇠 MK3");
             SetTargetFPS(60);
 
-            SaveLoad.LoadData();
+            SaveLoad.LoadSetting();
 
             while (!_shutdown)
             {
@@ -34,6 +34,7 @@ namespace GoldenKeyMK3
             }
 
             Login.ExitEvent.Set();
+            SaveLoad.SaveLog();
             UnloadFont(MainFont);
             UnloadTexture(Close.CancelIcon);
             UnloadTexture(Login.Background);

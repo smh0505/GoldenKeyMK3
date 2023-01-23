@@ -11,6 +11,7 @@ namespace GoldenKeyMK3.Script
     {
         Intro = 0,
         Login,
+        Load,
         Main
     }
 
@@ -27,10 +28,14 @@ namespace GoldenKeyMK3.Script
                     break;
                 case Scene.Login:
                     if (Login.DrawLogin(shutdownRequest))
-                    {
-                        Login.Connect();
-                        _currScene = Scene.Main;
-                    }
+                        _currScene = Directory.Exists("Logs") ? Scene.Load : Scene.Main;
+                    //{
+                    //    //Login.Connect();
+                    //    _currScene = Scene.Load;
+                    //}
+                    break;
+                case Scene.Load:
+                    LoadScene.DrawLoad();
                     break;
                 case Scene.Main:
                     Wheel.UpdateWheel(shutdownRequest);

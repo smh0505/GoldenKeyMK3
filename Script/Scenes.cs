@@ -35,7 +35,7 @@ namespace GoldenKeyMK3.Script
                     //}
                     break;
                 case Scene.Load:
-                    LoadScene.DrawLoad();
+                    LoadScene.DrawLoad(shutdownRequest);
                     break;
                 case Scene.Main:
                     Wheel.UpdateWheel(shutdownRequest);

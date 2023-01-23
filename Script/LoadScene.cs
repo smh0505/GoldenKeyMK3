@@ -8,17 +8,30 @@ namespace GoldenKeyMK3.Script
     {
         private static List<string> _logs;
         private static int _idx;
+        private static int _count;
+        private static int _page;
 
-        public static void DrawLoad()
+        public static void DrawLoad(bool shutdownRequest)
         {
             _logs = new (){"Default"};
             _logs.AddRange(Directory.GetFiles("Logs"));
 
-            Control();
+            if (!shutdownRequest) Control();
 
-            DrawRectangle(12, 12, 480, 48, Color.WHITE);
-            BeginScissorMode(12, 12, 480, 48);
-            DrawTextEx(Program.MainFont, _logs[_idx], new Vector2(18, 18), 36, 0, Color.BLACK);
+            DrawRectangle(40, 40, 480, 48, Color.WHITE);
+            BeginScissorMode(40, 40, 480, 48);
+            DrawTextEx(Program.MainFont, _logs[_idx], new Vector2(46, 46), 36, 0, Color.BLACK);
+            EndScissorMode();
+
+            _count = (int)Math.Floor((GetScreenHeight() - 154) / 48.0f);
+            _page = 0;
+            DrawRectangle(40, 114, 480, GetScreenHeight() - 154, Color.WHITE);
+            BeginScissorMode(40, 114, 480, GetScreenHeight() - 154);
+            for (int i = 0; i < _logs.Count; i++)
+            {
+                Vector2 pos = new (46, 120 + 48 * i);
+                DrawTextEx(Program.MainFont, _logs[i], pos, 36, 0, Color.BLACK);
+            }
             EndScissorMode();
         }
 

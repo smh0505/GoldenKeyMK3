@@ -31,13 +31,13 @@ namespace GoldenKeyMK3.Script
                     if (Login.DrawLogin(shutdownRequest))
                         _currScene = Directory.Exists("Logs") && Directory.GetFiles("Logs").Any()
                             ? Scene.Load : Scene.Main;
-                    //{
-                    //    //Login.Connect();
-                    //    _currScene = Scene.Load;
-                    //}
                     break;
                 case Scene.Load:
-                    LoadScene.DrawLoad(shutdownRequest);
+                    if (LoadScene.DrawLoad(shutdownRequest))
+                    {
+                        Login.Connect();
+                        _currScene = Scene.Main;
+                    }
                     break;
                 case Scene.Main:
                     Wheel.UpdateWheel(shutdownRequest);

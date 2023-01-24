@@ -54,6 +54,7 @@ namespace GoldenKeyMK3.Script
                 // Create Log File
                 Directory.CreateDirectory("Logs");
                 var time = DateTime.Now.ToString("s").Replace(':', '-').Replace('T', '-');
+                var filename = $"Logs/log-{time}.yml";
 
                 // Serialize Log
                 var serializer = new SerializerBuilder()
@@ -62,16 +63,10 @@ namespace GoldenKeyMK3.Script
                 var optionList = serializer.Serialize(Wheel.Options);
 
                 // Write Log File
-                for (int i = 0; i < 100; i++)
-                {
-                    var filename = $"Logs/log-{time}-{i:000}.yml";
-
-                    using FileStream file = File.Create(filename);
-                    StreamWriter w = new StreamWriter(file);
-                    w.Write(optionList);
-                    w.Close();
-                }
-
+                using FileStream file = File.Create(filename);
+                StreamWriter w = new StreamWriter(file);
+                w.Write(optionList);
+                w.Close();
             }
         }
     }

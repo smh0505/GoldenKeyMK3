@@ -12,6 +12,7 @@ namespace GoldenKeyMK3.Script
 
     public class SaveLoad
     {
+        public static List<WheelPanel> DefaultOptions;
         private static Setting _setting;
 
         public static void LoadSetting()
@@ -31,6 +32,7 @@ namespace GoldenKeyMK3.Script
 
                 // Insert Setting
                 Login.Input = string.IsNullOrEmpty(_setting.Key) ? string.Empty : _setting.Key;
+                DefaultOptions = _setting.Values == null ? new List<WheelPanel>() : LoadPanels();
             }
         }
 
@@ -69,7 +71,7 @@ namespace GoldenKeyMK3.Script
             }
         }
 
-        public static List<WheelPanel> LoadPanels()
+        private static List<WheelPanel> LoadPanels()
         {
             List<WheelPanel> panels = new List<WheelPanel>();
             Random rnd = new Random();

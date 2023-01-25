@@ -8,11 +8,19 @@ namespace GoldenKeyMK3.Script
     {
         private static string[] _files;
         private static List<string> _logs;
+        private static string[] _page;
+        private static List<WheelPanel> _options;
+
         private static int _idx;
         private static int _count;
         private static int _pagenum;
-        private static string[] _page;
         private static int _frames;
+
+        private static readonly string[] Texts =
+        {
+            "설정 불러오기",
+            "현재 설정"
+        };
 
         public static bool DrawLoad(bool shutdownRequest)
         {
@@ -22,7 +30,11 @@ namespace GoldenKeyMK3.Script
             _logs.Insert(0, "기본 설정");
 
             DrawList();
-            DrawTextEx(Program.MainFont, "설정 불러오기", new Vector2(560, 40), 72, 0, Color.BLACK);
+            DrawTextEx(Program.MainFont, Texts[0], new Vector2(560, 40), 72, 0, Color.BLACK);
+            DrawTextEx(Program.MainFont, Texts[1], new Vector2(560, 132), 48, 0, Color.BLACK);
+
+            DrawRectangle(560, 200, GetScreenWidth() - 600, GetScreenHeight() - 240, Color.WHITE);
+
 
             if (!shutdownRequest) return Control();
             return false;
@@ -35,14 +47,19 @@ namespace GoldenKeyMK3.Script
                 if (_frames == 0) _idx = _idx == 0 ? _logs.Count - 1 : _idx - 1;
                 _frames = _frames == 5 ? 0 : _frames + 1;
             }
+
             if (IsKeyDown(KeyboardKey.KEY_DOWN) || IsKeyDown(KeyboardKey.KEY_S))
             {
                 if (_frames == 0) _idx = _idx == _logs.Count - 1 ? 0 : _idx + 1;
                 _frames = _frames == 5 ? 0 : _frames + 1;
             }
+
             if (IsKeyUp(KeyboardKey.KEY_UP) && IsKeyUp(KeyboardKey.KEY_W) 
                 && IsKeyUp(KeyboardKey.KEY_DOWN) && IsKeyUp(KeyboardKey.KEY_S))
+            {
                 _frames = 0;
+                _options = _idx == 0 ? SaveLoad.LoadPanels() : SaveLoad.LoadLog(_files[_idx - 1]);
+            }
 
             if (IsKeyPressed(KeyboardKey.KEY_ENTER))
             {

@@ -1,3 +1,4 @@
+using static Raylib_cs.Raylib;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -30,8 +31,6 @@ namespace GoldenKeyMK3.Script
 
                 // Insert Setting
                 Login.Input = string.IsNullOrEmpty(_setting.Key) ? string.Empty : _setting.Key;
-                foreach (var option in _setting.Values)
-                    Wheel.Waitlist.Add(option);
             }
         }
 
@@ -68,6 +67,30 @@ namespace GoldenKeyMK3.Script
                 w.Write(optionList);
                 w.Close();
             }
+        }
+
+        public static List<WheelPanel> LoadPanels()
+        {
+            List<WheelPanel> panels = new List<WheelPanel>();
+            Random rnd = new Random();
+
+            foreach (var option in _setting.Values)
+            {
+                int id = panels.FindIndex(x => x.Name == option);
+                if (id != -1)
+                {
+                    var newOption = new WheelPanel(panels[id].Name, panels[id].Count + 1, panels[id].Color);
+                    panels.RemoveAt(id);
+                    panels.Insert(id, newOption);
+                }
+                else
+                {
+                    var newOption = new WheelPanel(option, 1,
+                        ColorFromHSV(rnd.NextSingle() * 360, rnd.NextSingle(), rnd.NextSingle() * 0.5f + 0.5f));
+                    panels.Add(newOption);
+                }
+            }
+            return panels;
         }
     }
 }

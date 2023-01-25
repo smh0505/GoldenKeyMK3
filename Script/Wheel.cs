@@ -81,7 +81,8 @@ namespace GoldenKeyMK3.Script
                 }
                 else
                 {
-                    var newOption = new WheelPanel(option, 1, new Color(Rnd.Next(256), Rnd.Next(256), Rnd.Next(256), 255));
+                    var newOption = new WheelPanel(option, 1,
+                        ColorFromHSV(Rnd.NextSingle() * 360.0f, Rnd.NextSingle(), Rnd.NextSingle() * 0.5f + 0.5f));
                     Options.Add(newOption);
                 }
             }

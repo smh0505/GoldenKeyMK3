@@ -34,8 +34,13 @@ namespace GoldenKeyMK3.Script
                     break;
                 case Scene.Login:
                     if (Login.DrawLogin(shutdownRequest))
-                        _currScene = Directory.Exists("Logs") && Directory.GetFiles("Logs").Any()
-                        ? Scene.Load : Scene.Main;
+                        if (Directory.Exists("Logs") && Directory.GetFiles("Logs").Any())
+                            _currScene = Scene.Load;
+                        else
+                        {
+                            Wheel.Options = SaveLoad.DefaultOptions;
+                            _currScene = Scene.Main;
+                        }
                     break;
                 case Scene.Load:
                     if (LoadScene.DrawLoad(shutdownRequest))

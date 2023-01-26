@@ -52,13 +52,13 @@ namespace GoldenKeyMK3.Script
             if (IsKeyDown(KeyboardKey.KEY_UP) || IsKeyDown(KeyboardKey.KEY_W))
             {
                 if (_frames == 0) _idx = _idx == 0 ? _logs.Count - 1 : _idx - 1;
-                _frames = _frames == 5 ? 0 : _frames + 1;
+                _frames = _frames == 6 ? 0 : _frames + 1;
             }
 
             if (IsKeyDown(KeyboardKey.KEY_DOWN) || IsKeyDown(KeyboardKey.KEY_S))
             {
                 if (_frames == 0) _idx = _idx == _logs.Count - 1 ? 0 : _idx + 1;
-                _frames = _frames == 5 ? 0 : _frames + 1;
+                _frames = _frames == 6 ? 0 : _frames + 1;
             }
 
             if (IsKeyUp(KeyboardKey.KEY_UP) && IsKeyUp(KeyboardKey.KEY_W) 

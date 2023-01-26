@@ -30,6 +30,7 @@ namespace GoldenKeyMK3
                 ClearBackground(Color.LIGHTGRAY);
                 Scenes.DrawScene(_shutdownRequest);
                 if (_shutdownRequest) Close.DrawExit(out _shutdownRequest, out _shutdown);
+                else _shutdownRequest = Scenes.Buttons();
                 EndDrawing();
             }
 

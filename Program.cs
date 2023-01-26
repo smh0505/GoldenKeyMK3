@@ -39,6 +39,7 @@ namespace GoldenKeyMK3
             UnloadFont(MainFont);
             UnloadTexture(Close.CancelIcon);
             UnloadTexture(Login.Background);
+            Scenes.DisposeButtons();
             CloseWindow();
         }
     }

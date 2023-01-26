@@ -22,6 +22,8 @@ namespace GoldenKeyMK3.Script
     public class Scenes
     {
         private static Scene _currScene;
+        private static Texture2D _minimize = LoadTexture("Resource/minus.png");
+        private static Texture2D _close = LoadTexture("Resource/power.png");
 
         public static void DrawScene(bool shutdownRequest)
         {
@@ -61,6 +63,7 @@ namespace GoldenKeyMK3.Script
                 else minimizeColor = Color.GREEN;
             }
             DrawRectangleRec(minimizeButton, minimizeColor);
+            DrawTexture(_minimize, (int)minimizeButton.x, (int)minimizeButton.y, Color.BLACK);
 
             var shutdownResponse = false;
             if (CheckCollisionPointRec(GetMousePosition(), closeButton))
@@ -69,7 +72,14 @@ namespace GoldenKeyMK3.Script
                 else closeColor = Color.RED;
             }
             DrawRectangleRec(closeButton, closeColor);
+            DrawTexture(_close, (int)closeButton.x, (int)closeButton.y, Color.BLACK);
             return shutdownResponse;
+        }
+
+        public static void DisposeButtons()
+        {
+            UnloadTexture(_minimize);
+            UnloadTexture(_close);
         }
     }
 }

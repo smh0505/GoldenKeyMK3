@@ -35,6 +35,7 @@ namespace GoldenKeyMK3
             }
 
             Login.ExitEvent.Set();
+            Chat.ExitEvent.Set();
             SaveLoad.SaveLog();
             UnloadFont(MainFont);
             UnloadTexture(Close.CancelIcon);

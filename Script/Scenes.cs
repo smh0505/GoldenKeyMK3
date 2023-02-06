@@ -16,7 +16,8 @@ namespace GoldenKeyMK3.Script
         Intro = 0,
         Login,
         Load,
-        Main
+        Main,
+        Board
     }
 
     public class Scenes
@@ -39,6 +40,8 @@ namespace GoldenKeyMK3.Script
                         else
                         {
                             Wheel.Options = SaveLoad.DefaultOptions;
+                            Login.Connect();
+                            Chat.Connect();
                             _currScene = Scene.Main;
                         }
                     break;
@@ -46,6 +49,7 @@ namespace GoldenKeyMK3.Script
                     if (LoadScene.DrawLoad(shutdownRequest))
                     {
                         Login.Connect();
+                        Chat.Connect();
                         _currScene = Scene.Main;
                     }
                     break;

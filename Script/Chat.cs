@@ -21,6 +21,11 @@ namespace GoldenKeyMK3.Script
             = new ConcurrentDictionary<string, Queue<(int, string)>>();
         private static bool _switch;
 
+        public static void DrawChat()
+        {
+
+        }
+
         public static async void Connect()
         {
             using (Client = new WebsocketClient(new Uri("wss://irc-ws.chat.twitch.tv:443")))
@@ -82,6 +87,17 @@ namespace GoldenKeyMK3.Script
             var content = text.Split(' ', 3);
             var idx = Convert.ToInt32(content[1]);
             return (idx, content[2]);
+        }
+
+        private static List<(string, string)> FindAllSongs(int idx)
+        {
+            var dict = _requests.ToDictionary(x => x.Key, x => x.Value);
+            var output = new List<(string, string)>();
+            foreach (var pair in dict)
+                foreach (var x in pair.Value)
+                    if (x.Item1 == idx)
+                        output.Add((pair.Key, x.Item2));
+            return output;
         }
     }
 }

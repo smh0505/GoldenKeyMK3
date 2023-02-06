@@ -8,7 +8,8 @@ namespace GoldenKeyMK3.Script
      * Intro.cs => Scene.Intro
      * Login.cs => Scene.Login
      * LoadScene.cs => Scene.Load
-     * MainScene.cs => Scene.Main
+     * Wheel.cs => Scene.Main
+     * Chat.cs => Scene.Board
      */
 
     public enum Scene

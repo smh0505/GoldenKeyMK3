@@ -4,18 +4,6 @@ using Websocket.Client;
 
 namespace GoldenKeyMK3.Script
 {
-    public struct SongRequest
-    {
-        public string Name;
-        public Queue<(int Idx, string Title)> Songs;
-
-        public SongRequest(string name)
-        {
-            Name = name;
-            Songs = new Queue<(int Idx, string Title)>();
-        }
-    }
-
     public class Chat
     {
         public static WebsocketClient Client;
@@ -29,7 +17,8 @@ namespace GoldenKeyMK3.Script
             {18, false}, {19, true}, {20, false}, {21, true}, {22, false} // right line
         };
 
-        private static ConcurrentBag<SongRequest> _requests = new ConcurrentBag<SongRequest>();
+        private static ConcurrentDictionary<string, Queue<(int, string)>> _requests 
+            = new ConcurrentDictionary<string, Queue<(int, string)>>();
         private static bool _switch;
 
         public static async void Connect()
@@ -40,12 +29,7 @@ namespace GoldenKeyMK3.Script
                 Client.MessageReceived.Subscribe(msg =>
                 {
                     if (msg.ToString().StartsWith("PING")) Client.Send("PONG :tmi.twitch.tv");
-                    if (msg.ToString().Contains("!픽"))
-                    {
-                        var text = msg.ToString();
-                        var objects = Regex.Split(text, @"^(?:@(?<tags>(?:.+?=.*?)(?:;.+?=.*?)*) )?(?::(?<source>[^ ]+?) )?(?<command>[0-9]{3}|[a-zA-Z]+)(?: (?<params>.+?))?(?: :(?<content>.*))?$");
-                        var tags = objects[0].Split(';');
-                    }
+                    if (msg.ToString().Contains("!픽")) UpdateRequest(msg.ToString());
                 });
                 await Client.Start();
                 Client.Send("CAP REQ :twitch.tv/commands twitch.tv/tags");
@@ -53,6 +37,51 @@ namespace GoldenKeyMK3.Script
                 Client.Send("JOIN #arpa__");
                 ExitEvent.WaitOne();
             }
+        }
+
+        private static void UpdateRequest(string msg)
+        {
+            var re = new Regex(@"^(?:@(?<tags>(?:.+?=.*?)(?:;.+?=.*?)*) )?(?::(?<source>[^ ]+?) )?(?<command>[0-9]{3}|[a-zA-Z]+)(?: (?<params>.+?))?(?: :(?<content>.*))?$");
+            var objects = re.Match(msg).Groups;
+
+            if (IsValid(objects["content"].ToString()))
+            {
+                var name = GetUsername(objects["tags"].ToString(), objects["source"].ToString());
+                _requests[name] ??= new Queue<(int, string)>();
+                _requests[name].Enqueue(GetOrder(objects["content"].ToString()));
+                if (_requests[name].Count > 3) _requests[name].Dequeue();
+            }
+        }
+
+        private static bool IsValid(string text)
+        {
+            var content = text.Split(' ', 3);
+            int idx = 0;
+            if (content.Length <= 3) return false;
+            if (!int.TryParse(content[1], out idx)) return false;
+            if (idx is < 1 or > 22) return false;
+            if (_board[idx]) return false;
+            return true;
+        }
+
+        private static string GetUsername(string tags, string source)
+        {
+            var name = tags.Split(';')
+                           .Select(x => x.Split('='))
+                           .ToDictionary(x => x[0], x => x[1])["display-name"];
+            if (string.IsNullOrEmpty(name))
+            {
+                var re = new Regex(@"^(?:(?<nick>[^\s]+?)!(?<user>[^\s]+?)@)?(?<host>[^\s]+)$");
+                name = re.Match(source).Groups["nick"].ToString();
+            }
+            return name;
+        }
+
+        private static (int, string) GetOrder(string text)
+        {
+            var content = text.Split(' ', 3);
+            var idx = Convert.ToInt32(content[1]);
+            return (idx, content[2]);
         }
     }
 }

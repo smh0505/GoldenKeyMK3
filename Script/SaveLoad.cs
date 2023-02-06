@@ -34,8 +34,6 @@ namespace GoldenKeyMK3.Script
                 Login.Input = string.IsNullOrEmpty(_setting.Key) ? string.Empty : _setting.Key;
                 DefaultOptions = _setting.Values == null ? new List<WheelPanel>() : LoadPanels();
             }
-
-            Oauth.Open();
         }
 
         public static List<WheelPanel> LoadLog(string filename)

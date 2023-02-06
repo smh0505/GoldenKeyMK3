@@ -54,12 +54,5 @@ namespace GoldenKeyMK3.Script
                 ExitEvent.WaitOne();
             }
         }
-=======
-namespace GoldenKeyMK3.Script
-{
-    public class Chat
-    {
-
->>>>>>> 5c437a6ef03ea540de6a76fdd6cb43578637faf3
     }
 }

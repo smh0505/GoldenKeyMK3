@@ -58,7 +58,7 @@ namespace GoldenKeyMK3.Script
                     Wheel.UpdateWheel(shutdownRequest);
                     break;
                 case Scene.Board:
-                    Chat.DrawChat();
+                    Chat.DrawChat(shutdownRequest);
                     break;
             }
         }

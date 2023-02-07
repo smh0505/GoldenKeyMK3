@@ -1,6 +1,8 @@
-using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 using Websocket.Client;
+using Raylib_cs;
+using static Raylib_cs.Raylib;
 
 namespace GoldenKeyMK3.Script
 {
@@ -9,21 +11,24 @@ namespace GoldenKeyMK3.Script
         public static WebsocketClient Client;
         public static ManualResetEvent ExitEvent = new ManualResetEvent(false);
 
-        private static Dictionary<int, bool> _board = new Dictionary<int, bool>
+        private static List<int> _board = new List<int>
         {
-            {1, false}, {2, true}, {3, false}, {4, false}, {5, true}, {6, false}, // bottom line
-            {7, false}, {8, true}, {9, false}, {10, true}, {11, false}, // left line
-            {12, false}, {13, true}, {14, false}, {15, false}, {16, true}, {17, false}, // top line
-            {18, false}, {19, true}, {20, false}, {21, true}, {22, false} // right line
+            2, 5, 8, 10, 13, 16, 19, 21
         };
 
-        private static ConcurrentDictionary<string, Queue<(int, string)>> _requests 
-            = new ConcurrentDictionary<string, Queue<(int, string)>>();
+        private static readonly Rectangle[] Pos = new []
+        {
+            new Rectangle()
+        };
+
+        private static ImmutableList<(string Name, int Idx, string Song)> _requests =
+            ImmutableList<(string Name, int Idx, string Song)>.Empty;
         private static bool _switch;
+        private static readonly Texture2D BaseBoard = LoadTexture("Resource/baseboard.png");
 
         public static void DrawChat()
         {
-
+            DrawBoard();
         }
 
         public static async void Connect()
@@ -34,15 +39,29 @@ namespace GoldenKeyMK3.Script
                 Client.MessageReceived.Subscribe(msg =>
                 {
                     if (msg.ToString().StartsWith("PING")) Client.Send("PONG :tmi.twitch.tv");
-                    if (msg.ToString().Contains("!픽")) UpdateRequest(msg.ToString());
+                    if (_switch && msg.ToString().Contains("!픽")) UpdateRequest(msg.ToString());
                 });
                 await Client.Start();
                 Client.Send("CAP REQ :twitch.tv/commands twitch.tv/tags");
                 Client.Send("NICK justinfan1234");
-                Client.Send("JOIN #arpa__");
+                Client.Send("JOIN #mson2017");
                 ExitEvent.WaitOne();
             }
         }
+
+        public static void Dispose()
+        {
+            UnloadTexture(BaseBoard);
+        }
+
+        // UIs
+
+        private static void DrawBoard()
+        {
+            DrawTexture(BaseBoard, GetScreenWidth() - 588, 74, Color.WHITE);
+        }
+
+        // Main Methods
 
         private static void UpdateRequest(string msg)
         {
@@ -52,33 +71,39 @@ namespace GoldenKeyMK3.Script
             if (IsValid(objects["content"].ToString()))
             {
                 var name = GetUsername(objects["tags"].ToString(), objects["source"].ToString());
-                _requests[name] ??= new Queue<(int, string)>();
-                _requests[name].Enqueue(GetOrder(objects["content"].ToString()));
-                if (_requests[name].Count > 3) _requests[name].Dequeue();
+                var order = GetOrder(objects["content"].ToString());
+                _requests = _requests.Add((name, order.Item1, order.Item2));
+                if (_requests.Count(x => x.Name == name) > 3)
+                    _requests = _requests.Remove(_requests.First(x => x.Name == name));
             }
         }
 
         private static bool IsValid(string text)
         {
             var content = text.Split(' ', 3);
-            int idx = 0;
-            if (content.Length <= 3) return false;
-            if (!int.TryParse(content[1], out idx)) return false;
+
+            if (content.Length < 3) return false;
+            if (!int.TryParse(content[1], out var idx)) return false;
             if (idx is < 1 or > 22) return false;
-            if (_board[idx]) return false;
+            if (_board.Contains(idx)) return false;
+
             return true;
         }
 
         private static string GetUsername(string tags, string source)
         {
+            // display-name
             var name = tags.Split(';')
                            .Select(x => x.Split('='))
                            .ToDictionary(x => x[0], x => x[1])["display-name"];
+
+            // username
             if (string.IsNullOrEmpty(name))
             {
                 var re = new Regex(@"^(?:(?<nick>[^\s]+?)!(?<user>[^\s]+?)@)?(?<host>[^\s]+)$");
                 name = re.Match(source).Groups["nick"].ToString();
             }
+
             return name;
         }
 
@@ -90,14 +115,6 @@ namespace GoldenKeyMK3.Script
         }
 
         private static List<(string, string)> FindAllSongs(int idx)
-        {
-            var dict = _requests.ToDictionary(x => x.Key, x => x.Value);
-            var output = new List<(string, string)>();
-            foreach (var pair in dict)
-                foreach (var x in pair.Value)
-                    if (x.Item1 == idx)
-                        output.Add((pair.Key, x.Item2));
-            return output;
-        }
+            => _requests.FindAll(x => x.Idx == idx).Select(x => (x.Name, x.Song)).ToList();
     }
 }

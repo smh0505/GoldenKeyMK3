@@ -37,6 +37,7 @@ namespace GoldenKeyMK3.Script
         private static float _startAngle;
         private static float _diffAngle = 50.0f;
         private static readonly Random Rnd = new Random();
+        
         private static readonly Dictionary<WheelState, string> ButtonPool = new Dictionary<WheelState, string>
         {
             {WheelState.Idle, "돌리기"},
@@ -62,8 +63,85 @@ namespace GoldenKeyMK3.Script
             }
             DrawWheel();
             if (_state == WheelState.Result) DrawResult();
-            DrawButton(shutdownRequest);
+            if (_state != WheelState.Stopping && Options.Count > 0) DrawButton(shutdownRequest);
         }
+
+        // UIs
+
+        private static void DrawWheel()
+        {
+            float currAngle = _startAngle;
+            float unitAngle = 360.0f / Sum;
+            Vector2 center = new Vector2(GetScreenWidth() * 0.3f, GetScreenHeight() * 0.5f);
+            float radius = GetScreenHeight() * 0.375f;
+
+            // Circular sectors
+            foreach (var option in Options)
+            {
+                DrawCircleSector(center, radius, currAngle, currAngle + unitAngle * option.Count, 0, option.Color);
+                currAngle += unitAngle * option.Count;
+            }
+
+            // Labels
+            currAngle = _startAngle;
+            foreach (var option in Options)
+            {
+                Vector2 origin = new Vector2(radius / 2 + MeasureTextEx(Program.MainFont, option.Name, 24, 0).X / 2, 12);
+                float theta = -90.0f - (currAngle + unitAngle * option.Count / 2);
+                DrawTextPro(Program.MainFont, option.Name, center, origin, theta, 24, 0, Color.BLACK);
+                currAngle += unitAngle * option.Count;
+            }
+
+            // Triangular arrow
+            Vector2[] vtx =
+            {
+                new Vector2(GetScreenWidth() * 0.3f - 20, GetScreenHeight() * 0.125f - 20),
+                new Vector2(GetScreenWidth() * 0.3f, GetScreenHeight() * 0.125f + 20),
+                new Vector2(GetScreenWidth() * 0.3f + 20, GetScreenHeight() * 0.125f - 20),
+            };
+            DrawTriangle(vtx[0], vtx[1], vtx[2], Color.BLACK);
+        }
+
+        private static void DrawButton(bool shutdownRequest)
+        {
+            var center = new Vector2(80, GetScreenHeight() - 80.0f);
+            var buttonText = ButtonPool[_state];
+            var buttonTextLen = MeasureTextEx(Program.MainFont, buttonText, 36, 0).X;
+            var buttonTextPos = new Vector2(center.X - buttonTextLen / 2, center.Y - 18);
+            var buttonColor = Fade(Color.GREEN, 0.7f);
+
+            if (CheckCollisionPointCircle(GetMousePosition(), center, 60.0f) && !shutdownRequest)
+            {
+                if (IsMouseButtonPressed(0))
+                {
+                    _state = (WheelState)(((int)_state + 1) % 4);
+                    if (_state == WheelState.Idle) RemoveOption(Result());
+                }
+                else buttonColor = Color.GREEN;
+            }
+
+            DrawCircleV(center, 60.0f, buttonColor);
+            DrawTextEx(Program.MainFont, buttonText, buttonTextPos, 36, 0, Color.BLACK);
+        }
+
+        private static void DrawResult()
+        {
+            DrawRectangle(12, 12, (int)(GetScreenWidth() * 0.6f), GetScreenHeight() - 24, Fade(Color.BLACK, 0.5f));
+
+            string text = "이번 황금열쇠는";
+            Vector2 textPos = new Vector2(GetScreenWidth() * 0.3f - MeasureTextEx(Program.MainFont, text, 48, 0).X / 2,
+                GetScreenHeight() * 0.4f - 48);
+            DrawTextEx(Program.MainFont, text, textPos, 48, 0, Color.WHITE);
+
+            Vector2 namePos =
+                new Vector2(GetScreenWidth() * 0.3f - MeasureTextEx(Program.MainFont, Result().Name, 72, 0).X / 2,
+                    GetScreenHeight() * 0.4f);
+            BeginScissorMode(12, (int)(GetScreenHeight() * 0.4f), (int)(GetScreenWidth() * 0.6f), 72);
+            DrawTextEx(Program.MainFont, Result().Name, namePos, 72, 0, Color.WHITE);
+            EndScissorMode();
+        }
+
+        // Controls
 
         private static void AddOption()
         {
@@ -117,79 +195,6 @@ namespace GoldenKeyMK3.Script
                 return target;
             }
             return new WheelPanel(string.Empty, 1, Color.WHITE);
-        }
-
-        private static void DrawWheel()
-        {
-            float currAngle = _startAngle;
-            float unitAngle = 360.0f / Sum;
-            Vector2 center = new Vector2(GetScreenWidth() * 0.3f, GetScreenHeight() * 0.5f);
-            float radius = GetScreenHeight() * 0.375f;
-
-            foreach (var option in Options)
-            {
-                DrawCircleSector(center, radius, currAngle, currAngle + unitAngle * option.Count, 0, option.Color);
-                currAngle += unitAngle * option.Count;
-            }
-
-            currAngle = _startAngle;
-            foreach (var option in Options)
-            {
-                Vector2 origin = new Vector2(radius / 2 + MeasureTextEx(Program.MainFont, option.Name, 24, 0).X / 2, 12);
-                float theta = -90.0f - (currAngle + unitAngle * option.Count / 2);
-                DrawTextPro(Program.MainFont, option.Name, center, origin, theta, 24, 0, Color.BLACK);
-                currAngle += unitAngle * option.Count;
-            }
-
-            Vector2[] vtx =
-            {
-                new Vector2(GetScreenWidth() * 0.3f - 20, GetScreenHeight() * 0.125f - 20),
-                new Vector2(GetScreenWidth() * 0.3f, GetScreenHeight() * 0.125f + 20),
-                new Vector2(GetScreenWidth() * 0.3f + 20, GetScreenHeight() * 0.125f - 20),
-            };
-            DrawTriangle(vtx[0], vtx[1], vtx[2], Color.BLACK);
-        }
-
-        private static void DrawButton(bool shutdownRequest)
-        {
-            Vector2 center = new Vector2(80, GetScreenHeight() - 80.0f);
-
-            if (_state != WheelState.Stopping && Options.Count > 0)
-            {
-                var buttonText = ButtonPool[_state];
-                Color buttonColor = Fade(Color.GREEN, 0.7f);
-                if (CheckCollisionPointCircle(GetMousePosition(), center, 60.0f) && !shutdownRequest)
-                {
-                    if (IsMouseButtonPressed(0))
-                    {
-                        _state = (WheelState)(((int)_state + 1) % 4);
-                        if (_state == WheelState.Idle) RemoveOption(Result());
-                    }
-                    else buttonColor = Color.GREEN;
-                }
-
-                var buttonTextLen = MeasureTextEx(Program.MainFont, buttonText, 36, 0).X;
-                var buttonTextPos = new Vector2(center.X - buttonTextLen / 2, center.Y - 18);
-                DrawCircleV(center, 60.0f, buttonColor);
-                DrawTextEx(Program.MainFont, buttonText, buttonTextPos, 36, 0, Color.BLACK);
-            }
-        }
-
-        private static void DrawResult()
-        {
-            DrawRectangle(12, 12, (int)(GetScreenWidth() * 0.6f), GetScreenHeight() - 24, Fade(Color.BLACK, 0.5f));
-
-            string text = "이번 황금열쇠는";
-            Vector2 textPos = new Vector2(GetScreenWidth() * 0.3f - MeasureTextEx(Program.MainFont, text, 48, 0).X / 2,
-                GetScreenHeight() * 0.4f - 48);
-            DrawTextEx(Program.MainFont, text, textPos, 48, 0, Color.WHITE);
-
-            Vector2 namePos =
-                new Vector2(GetScreenWidth() * 0.3f - MeasureTextEx(Program.MainFont, Result().Name, 72, 0).X / 2,
-                    GetScreenHeight() * 0.4f);
-            BeginScissorMode(12, (int)(GetScreenHeight() * 0.4f), (int)(GetScreenWidth() * 0.6f), 72);
-            DrawTextEx(Program.MainFont, Result().Name, namePos, 72, 0, Color.WHITE);
-            EndScissorMode();
         }
     }
 }

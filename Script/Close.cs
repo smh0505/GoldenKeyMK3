@@ -6,7 +6,7 @@ namespace GoldenKeyMK3.Script
 {
     public class Close
     {
-        public static Texture2D CancelIcon = LoadTexture("Resource/return.png");
+        private static readonly Texture2D CancelIcon = LoadTexture("Resource/return.png");
         private static int _count;
         private static readonly List<string> Texts = new List<string>
         {
@@ -16,23 +16,37 @@ namespace GoldenKeyMK3.Script
         };
         private static readonly Rectangle CancelButton = new Rectangle(12, GetScreenHeight() - 156, 100, 100);
 
-        public static void InitExit()
-        {
-            _count = 0;
-        }
+        public static void InitExit() => _count = 0;
 
         public static void DrawExit(out bool shutdownRequest, out bool shutdownResponse)
         {
-            // Background
+            // UIs
             DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(Color.BLACK, 0.7f));
+            DrawTexts();
+            shutdownRequest = !DrawButton();
 
-            // Texts
+            // Exit Sequence
+            if (IsKeyPressed(KeyboardKey.KEY_SPACE)) _count++;
+            shutdownResponse = _count >= 5;
+        }
+
+        public static void Dispose()
+        {
+            UnloadTexture(CancelIcon);
+        }
+
+        // UIs
+
+        private static void DrawTexts()
+        {
             DrawTextEx(Program.MainFont, Texts[0], new Vector2(12, 12), 48, 0, Color.WHITE);
             DrawTextEx(Program.MainFont, Texts[1], new Vector2(12, 60), 36, 0, Color.WHITE);
             DrawTextEx(Program.MainFont, $"종료까지 앞으로 {5 - _count}회", new Vector2(12, 92), 36, 0, Color.WHITE);
             DrawTextEx(Program.MainFont, Texts[2], new Vector2(12, GetScreenHeight() - 44), 36, 0, Color.WHITE);
+        }
 
-            // Cancel Button
+        private static bool DrawButton()
+        {
             bool isClicked = false;
             Color cancelColor = Color.DARKGREEN;
             if (CheckCollisionPointRec(GetMousePosition(), CancelButton))
@@ -42,11 +56,7 @@ namespace GoldenKeyMK3.Script
             }
             DrawRectangleRec(CancelButton, cancelColor);
             DrawTexture(CancelIcon, (int)CancelButton.x - 4, (int)CancelButton.y - 4, Color.YELLOW);
-            shutdownRequest = !isClicked;
-
-            // Exit Sequence
-            if (IsKeyPressed(KeyboardKey.KEY_SPACE)) _count++;
-            shutdownResponse = _count >= 5;
+            return isClicked;
         }
     }
 }

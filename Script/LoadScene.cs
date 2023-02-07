@@ -47,36 +47,7 @@ namespace GoldenKeyMK3.Script
             return false;
         }
 
-        private static bool Control()
-        {
-            if (IsKeyDown(KeyboardKey.KEY_UP) || IsKeyDown(KeyboardKey.KEY_W))
-            {
-                if (_frames == 0) _idx = _idx == 0 ? _logs.Count - 1 : _idx - 1;
-                _frames = _frames == 6 ? 0 : _frames + 1;
-            }
-
-            if (IsKeyDown(KeyboardKey.KEY_DOWN) || IsKeyDown(KeyboardKey.KEY_S))
-            {
-                if (_frames == 0) _idx = _idx == _logs.Count - 1 ? 0 : _idx + 1;
-                _frames = _frames == 6 ? 0 : _frames + 1;
-            }
-
-            if (IsKeyUp(KeyboardKey.KEY_UP) && IsKeyUp(KeyboardKey.KEY_W) 
-                && IsKeyUp(KeyboardKey.KEY_DOWN) && IsKeyUp(KeyboardKey.KEY_S))
-            {
-                _frames = 0;
-                if (SaveLoad.DefaultOptions.Any())
-                    _options = _idx == 0 ? SaveLoad.DefaultOptions : SaveLoad.LoadLog(_files[_idx - 1]);
-                else _options = SaveLoad.LoadLog(_files[_idx]);
-            }
-
-            if (IsKeyPressed(KeyboardKey.KEY_ENTER))
-            {
-                Wheel.Options = _options;
-                return true;
-            }
-            return false;
-        }
+        // UIs
 
         private static void DrawList()
         {
@@ -103,21 +74,7 @@ namespace GoldenKeyMK3.Script
 
         private static void DrawLog()
         {
-            _count2 = (int)Math.Ceiling((GetScreenHeight() - 240) / 48.0f);
-            if (_options.Count >= _count2) 
-            {
-                _ypos -= 2;
-                if (_ypos <= -48)
-                {
-                    _idx2 = (_idx2 + 1) % _options.Count;
-                    _ypos = 0;
-                }    
-            } 
-            else _ypos = _idx2 = 0;
-
-            var panels = _options.Skip(_idx2).Take(_count2 + 1).ToList();
-            if (_options.Count >= _count2 && panels.Count < _count2 + 1)
-                panels.AddRange(_options.Take(_count2 + 1 - panels.Count));
+            var panels = Marquee();
 
             DrawRectangle(560, 200, GetScreenWidth() - 600, GetScreenHeight() - 240, Color.WHITE);
             BeginScissorMode(560, 200, GetScreenWidth() - 600, GetScreenHeight() - 240);
@@ -125,10 +82,64 @@ namespace GoldenKeyMK3.Script
             {
                 var pos = new Vector2(560, 200 + _ypos + 48 * i);
                 DrawRectangle((int)pos.X, (int)pos.Y, GetScreenWidth() - 600, 48, panels[i].Color);
-                DrawTextEx(Program.MainFont, panels[i].Name + $" * {panels[i].Count}", 
+                DrawTextEx(Program.MainFont, panels[i].Name + $" * {panels[i].Count}",
                     new Vector2(pos.X + 6, pos.Y + 6), 36, 0, Color.BLACK);
             }
             EndScissorMode();
+        }
+
+        // Controls
+
+        private static bool Control()
+        {
+            if (IsKeyDown(KeyboardKey.KEY_UP))
+            {
+                if (_frames == 0) _idx = _idx == 0 ? _logs.Count - 1 : _idx - 1;
+                _frames = _frames == 6 ? 0 : _frames + 1;
+            }
+
+            if (IsKeyDown(KeyboardKey.KEY_DOWN))
+            {
+                if (_frames == 0) _idx = _idx == _logs.Count - 1 ? 0 : _idx + 1;
+                _frames = _frames == 6 ? 0 : _frames + 1;
+            }
+
+            if (IsKeyUp(KeyboardKey.KEY_UP) && IsKeyUp(KeyboardKey.KEY_DOWN))
+            {
+                _frames = 0;
+                if (SaveLoad.DefaultOptions.Any())
+                    _options = _idx == 0 ? SaveLoad.DefaultOptions : SaveLoad.LoadLog(_files[_idx - 1]);
+                else _options = SaveLoad.LoadLog(_files[_idx]);
+            }
+
+            if (IsKeyPressed(KeyboardKey.KEY_ENTER))
+            {
+                Wheel.Options = _options;
+                return true;
+            }
+            return false;
+        }
+
+        private static List<WheelPanel> Marquee()
+        {
+            // Translates position upward
+            _count2 = (int)Math.Ceiling((GetScreenHeight() - 240) / 48.0f);
+            if (_options.Count >= _count2)
+            {
+                _ypos -= 2;
+                if (_ypos <= -48)
+                {
+                    _idx2 = (_idx2 + 1) % _options.Count;
+                    _ypos = 0;
+                }
+            }
+            else _ypos = _idx2 = 0;
+
+            // Chooses items to show
+            var panels = _options.Skip(_idx2).Take(_count2 + 1).ToList();
+            if (_options.Count >= _count2 && panels.Count < _count2 + 1)
+                panels.AddRange(_options.Take(_count2 + 1 - panels.Count));
+            return panels;
         }
     }
 }

@@ -57,6 +57,9 @@ namespace GoldenKeyMK3.Script
                 case Scene.Main:
                     Wheel.UpdateWheel(shutdownRequest);
                     break;
+                case Scene.Board:
+                    Chat.DrawChat();
+                    break;
             }
         }
 
@@ -86,7 +89,7 @@ namespace GoldenKeyMK3.Script
             return shutdownResponse;
         }
 
-        public static void DisposeButtons()
+        public static void Dispose()
         {
             UnloadTexture(_minimize);
             UnloadTexture(_close);

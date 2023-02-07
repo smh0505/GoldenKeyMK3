@@ -11,6 +11,13 @@ namespace GoldenKeyMK3.Script
         public static ManualResetEvent ExitEvent = new ManualResetEvent(false);
         public static WebsocketClient Client;
 
+        public static string Input = string.Empty;
+        public static string Payload = string.Empty;
+        private static bool _isShowed = false;
+        private static bool _isProcessing = false;
+        private static bool _failed = false;
+        private static readonly Texture2D Background = LoadTexture("Resource/Logo_RhythmMarble.png");
+
         private static readonly List<string> Texts = new List<string>
         {
             "투네이션 통합 위젯 URL",
@@ -21,30 +28,74 @@ namespace GoldenKeyMK3.Script
             "Logo Image by 채팅_안치는사람 & cannabee",
             "Copyright © 2019-2022 Minseo Lee (itoupluk427@gmail.com)"
         };
-        public static string Input = string.Empty;
-        public static Texture2D Background = LoadTexture("Resource/Logo_RhythmMarble.png");
-        public static string Payload = string.Empty;
-        private static bool _isShowed = false;
-        private static bool _isProcessing = false;
-        private static bool _failed = false;
 
         public static bool DrawLogin(bool shutdownRequest)
         {
-            // Background Image
+            DrawBackground();
+            DrawTexts();
+            DrawTextBox();
+            DrawButton(shutdownRequest);
+
+            if (!shutdownRequest) return GetInput().Result;
+            else return false;
+        }
+
+        public static async void Connect()
+        {
+            using (Client = new WebsocketClient(new Uri("wss://toon.at:8071/" + Payload)))
+            {
+                Client.MessageReceived.Subscribe(msg =>
+                {
+                    if (msg.ToString().Contains("roulette"))
+                    {
+                        Regex re = new Regex(@".message.:.+? - (?<rValue>.+?).");
+                        Wheel.Waitlist.Add(re.Match(msg.ToString()).Groups["rValue"].ToString());
+
+                        //var roulette = Regex.Match(msg.ToString(), "\"message\":\"[^\"]* - [^\"]*\"").Value.Substring(10);
+                        //var rValue = roulette.Split('-')[1].Replace("\"", "").Substring(1);
+                        //if (rValue != "꽝") Wheel.Waitlist.Add(rValue);
+                    }
+                });
+                await Client.Start();
+                ExitEvent.WaitOne();
+            }
+        }
+
+        public static void Dispose()
+        {
+            UnloadTexture(Background);
+        }
+
+        // UIs
+
+        private static void DrawBackground()
+        {
             Vector2 picPos = new Vector2(GetScreenWidth() - Background.width - 20,
                 GetScreenHeight() - Background.height - 20);
             DrawTextureEx(Background, picPos, 0, 1, Fade(Color.WHITE, 0.7f));
+        }
 
-            // Texts
+        private static void DrawTexts()
+        {
             Vector2 text1Pos = new Vector2((GetScreenWidth() - MeasureTextEx(Program.MainFont, Texts[0], 48, 0).X) / 2,
                 GetScreenHeight() * 0.5f - 128);
             Vector2 text2Pos = new Vector2((GetScreenWidth() - MeasureTextEx(Program.MainFont, Texts[1], 48, 0).X) / 2,
                 GetScreenHeight() * 0.5f - 80);
+            Vector2 alertPos = new Vector2((GetScreenWidth() - MeasureTextEx(Program.MainFont, Texts[2], 48, 0).X) * 0.5f,
+                GetScreenHeight() * 0.5f + 32);
+            Vector2 head = new Vector2(12, GetScreenHeight() - 132);
 
-            // Input Box
             DrawTextEx(Program.MainFont, Texts[0], text1Pos, 48, 0, Color.BLACK);
             DrawTextEx(Program.MainFont, Texts[1], text2Pos, 48, 0, Color.BLACK);
+            if (_failed) DrawTextEx(Program.MainFont, Texts[2], alertPos, 48, 0, Color.RED);
+            DrawTextEx(Program.MainFont, Texts[3], head, 24, 0, Color.GRAY);
+            DrawTextEx(Program.MainFont, Texts[4], head + new Vector2(0, 24), 24, 0, Color.GRAY);
+            DrawTextEx(Program.MainFont, Texts[5], head + new Vector2(0, 48), 24, 0, Color.GRAY);
+            DrawTextEx(Program.MainFont, Texts[6], head + new Vector2(0, 96), 24, 0, Color.GRAY);
+        }
 
+        private static void DrawTextBox()
+        {
             Rectangle textBox = new Rectangle(GetScreenWidth() * 0.25f, GetScreenHeight() * 0.5f - 28,
                 GetScreenWidth() * 0.5f, 56);
             DrawRectangleRec(textBox, Color.WHITE);
@@ -55,29 +106,32 @@ namespace GoldenKeyMK3.Script
             float inputPos = MeasureTextEx(Program.MainFont, inputText, 48, 0).X >= textBox.width
                 ? inputRect.x + inputRect.width - MeasureTextEx(Program.MainFont, inputText, 48, 0).X
                 : inputRect.x;
+
             BeginScissorMode((int)inputRect.x, (int)inputRect.y, (int)inputRect.width, (int)inputRect.height);
             DrawTextEx(Program.MainFont, inputText, new Vector2(inputPos, inputRect.y), 48, 0, Color.BLACK);
             EndScissorMode();
-
-            // More Texts
-            Vector2 head = new Vector2(12, GetScreenHeight() - 132);
-            DrawTextEx(Program.MainFont, Texts[3], head, 24, 0, Color.GRAY);
-            DrawTextEx(Program.MainFont, Texts[4], head + new Vector2(0, 24), 24, 0, Color.GRAY);
-            DrawTextEx(Program.MainFont, Texts[5], head + new Vector2(0, 48), 24, 0, Color.GRAY);
-            DrawTextEx(Program.MainFont, Texts[6], head + new Vector2(0, 96), 24, 0, Color.GRAY);
-
-            Vector2 alertPos = new Vector2((GetScreenWidth() - MeasureTextEx(Program.MainFont, Texts[2], 48, 0).X) * 0.5f,
-                GetScreenHeight() * 0.5f + 32);
-            if (_failed) DrawTextEx(Program.MainFont, Texts[2], alertPos, 48, 0, Color.RED);
-
-            DrawButton(shutdownRequest);
-
-            return GetInput(shutdownRequest).Result;
         }
 
-        private static async Task<bool> GetInput(bool shutdownRequest)
+        private static void DrawButton(bool shutdownRequest)
         {
-            if (!shutdownRequest) switch((KeyboardKey)GetKeyPressed())
+            Rectangle copyButton = new Rectangle(12, 12, 160, 80);
+            Color copyColor = Fade(Color.GREEN, 0.7f);
+            if (CheckCollisionPointRec(GetMousePosition(), copyButton) && !shutdownRequest)
+            {
+                if (IsMouseButtonPressed(0)) Input = GetClipboardText_();
+                else copyColor = Color.GREEN;
+            }
+            DrawRectangleRec(copyButton, copyColor);
+
+            Vector2 copyPos = new Vector2(92 - MeasureTextEx(Program.MainFont, "붙여넣기", 48, 0).X / 2, 28);
+            DrawTextEx(Program.MainFont, "붙여넣기", copyPos, 48, 0, Color.BLACK);
+        }
+
+        // Controls
+
+        private static async Task<bool> GetInput()
+        {
+            switch((KeyboardKey)GetKeyPressed())
             {
                 case KeyboardKey.KEY_ENTER:
                     if (!_isProcessing) await LoadPayload();
@@ -102,21 +156,6 @@ namespace GoldenKeyMK3.Script
             return false;
         }
 
-        private static void DrawButton(bool shutdownRequest)
-        {
-            Rectangle copyButton = new Rectangle(12, 12, 160, 80);
-            Color copyColor = Fade(Color.GREEN, 0.7f);
-            if (CheckCollisionPointRec(GetMousePosition(), copyButton) && !shutdownRequest)
-            {
-                if (IsMouseButtonPressed(0)) Input = GetClipboardText_();
-                else copyColor = Color.GREEN;
-            }
-            DrawRectangleRec(copyButton, copyColor);
-
-            Vector2 copyPos = new Vector2(92 - MeasureTextEx(Program.MainFont, "붙여넣기", 48, 0).X / 2, 28);
-            DrawTextEx(Program.MainFont, "붙여넣기", copyPos, 48, 0, Color.BLACK);
-        }
-
         private static async Task LoadPayload()
         {
             _isProcessing = true;
@@ -127,24 +166,6 @@ namespace GoldenKeyMK3.Script
                 var body = await response.Content.ReadAsStringAsync();
                 var line = Regex.Match(body, "\"payload\":\"[^\"]*\"").Value;
                 Payload = Regex.Match(line, @"[\w]{8,}").Value;
-            }
-        }
-
-        public static async void Connect()
-        {
-            using (Client = new WebsocketClient(new Uri("wss://toon.at:8071/" + Payload)))
-            {
-                Client.MessageReceived.Subscribe(msg =>
-                {
-                    if (msg.ToString().Contains("roulette"))
-                    {
-                        var roulette = Regex.Match(msg.ToString(), "\"message\":\"[^\"]* - [^\"]*\"").Value.Substring(10);
-                        var rValue = roulette.Split('-')[1].Replace("\"", "").Substring(1);
-                        if (rValue != "꽝") Wheel.Waitlist.Add(rValue);
-                    }
-                });
-                await Client.Start();
-                ExitEvent.WaitOne();
             }
         }
     }

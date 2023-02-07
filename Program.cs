@@ -34,14 +34,25 @@ namespace GoldenKeyMK3
                 EndDrawing();
             }
 
+            DisposeAll();
+            CloseWindow();
+        }
+
+        private static void DisposeAll()
+        {
+            // Disconnect
             Login.ExitEvent.Set();
             Chat.ExitEvent.Set();
+
+            // Save log
             SaveLoad.SaveLog();
+
+            // Dispose
             UnloadFont(MainFont);
-            UnloadTexture(Close.CancelIcon);
-            UnloadTexture(Login.Background);
-            Scenes.DisposeButtons();
-            CloseWindow();
+            Close.Dispose();
+            Login.Dispose();
+            Scenes.Dispose();
+            Chat.Dispose();
         }
     }
 }

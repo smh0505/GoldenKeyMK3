@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Numerics;
 using System.Text.RegularExpressions;
 using Websocket.Client;
 using Raylib_cs;
@@ -58,7 +59,7 @@ namespace GoldenKeyMK3.Script
 
         private static void DrawBoard()
         {
-            DrawTexture(BaseBoard, GetScreenWidth() - 588, 74, Color.WHITE);
+            DrawTextureEx(BaseBoard, new Vector2(12, 12), 0, 2.4f, Color.WHITE);
         }
 
         // Main Methods

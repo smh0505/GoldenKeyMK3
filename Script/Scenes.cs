@@ -24,8 +24,8 @@ namespace GoldenKeyMK3.Script
     public class Scenes
     {
         private static Scene _currScene;
-        private static Texture2D _minimize = LoadTexture("Resource/minus.png");
-        private static Texture2D _close = LoadTexture("Resource/power.png");
+        private static readonly Texture2D MinimizeIcon = LoadTexture("Resource/minus.png");
+        private static readonly Texture2D CloseIcon = LoadTexture("Resource/power.png");
 
         public static void DrawScene(bool shutdownRequest)
         {
@@ -63,12 +63,16 @@ namespace GoldenKeyMK3.Script
             }
         }
 
+        // UIs
+
         public static bool Buttons()
         {
             var minimizeButton = new Rectangle(GetScreenWidth() - 124, 12, 50, 50);
             var closeButton = new Rectangle(GetScreenWidth() - 62, 12, 50, 50);
+            var switchButton = new Rectangle(GetScreenWidth() - 252, GetScreenHeight() - 72, 240, 60);
             var minimizeColor = Fade(Color.GREEN, 0.7f);
             var closeColor = Fade(Color.RED, 0.7f);
+            var switchColor = Fade(Color.YELLOW, 0.7f);
 
             if (CheckCollisionPointRec(GetMousePosition(), minimizeButton))
             {
@@ -76,7 +80,7 @@ namespace GoldenKeyMK3.Script
                 else minimizeColor = Color.GREEN;
             }
             DrawRectangleRec(minimizeButton, minimizeColor);
-            DrawTexture(_minimize, (int)minimizeButton.x, (int)minimizeButton.y, Color.BLACK);
+            DrawTexture(MinimizeIcon, (int)minimizeButton.x, (int)minimizeButton.y, Color.BLACK);
 
             var shutdownResponse = false;
             if (CheckCollisionPointRec(GetMousePosition(), closeButton))
@@ -85,14 +89,34 @@ namespace GoldenKeyMK3.Script
                 else closeColor = Color.RED;
             }
             DrawRectangleRec(closeButton, closeColor);
-            DrawTexture(_close, (int)closeButton.x, (int)closeButton.y, Color.BLACK);
+            DrawTexture(CloseIcon, (int)closeButton.x, (int)closeButton.y, Color.BLACK);
+
+            if ((int)_currScene > 2)
+            {
+                if (CheckCollisionPointRec(GetMousePosition(), switchButton))
+                {
+                    if (IsMouseButtonPressed(0))
+                        switch (_currScene)
+                        {
+                            case Scene.Main:
+                                _currScene = Scene.Board;
+                                break;
+                            case Scene.Board:
+                                _currScene = Scene.Main;
+                                break;
+                        }
+                    else switchColor = Color.YELLOW;
+                }
+                DrawRectangleRec(switchButton, switchColor);
+            }
+
             return shutdownResponse;
         }
 
         public static void Dispose()
         {
-            UnloadTexture(_minimize);
-            UnloadTexture(_close);
+            UnloadTexture(MinimizeIcon);
+            UnloadTexture(CloseIcon);
         }
     }
 }

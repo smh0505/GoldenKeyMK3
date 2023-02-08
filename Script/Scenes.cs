@@ -1,3 +1,4 @@
+using System.Numerics;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
 
@@ -26,6 +27,7 @@ namespace GoldenKeyMK3.Script
         private static Scene _currScene;
         private static readonly Texture2D MinimizeIcon = LoadTexture("Resource/minus.png");
         private static readonly Texture2D CloseIcon = LoadTexture("Resource/power.png");
+        private static string _switchText = "곡 추첨";
 
         public static void DrawScene(bool shutdownRequest)
         {
@@ -100,14 +102,21 @@ namespace GoldenKeyMK3.Script
                         {
                             case Scene.Main:
                                 _currScene = Scene.Board;
+                                _switchText = "황금열쇠";
                                 break;
                             case Scene.Board:
                                 _currScene = Scene.Main;
+                                _switchText = "곡 추첨";
                                 break;
                         }
-                    else switchColor = Color.YELLOW;
+                    switchColor = Color.YELLOW;
                 }
                 DrawRectangleRec(switchButton, switchColor);
+
+                var switchSize = MeasureTextEx(Program.MainFont, _switchText, 48, 0);
+                var switchPos = new Vector2(switchButton.x + (switchButton.width - switchSize.X) * 0.5f,
+                    switchButton.y + (switchButton.height - switchSize.Y) * 0.5f);
+                DrawTextEx(Program.MainFont, _switchText, switchPos, 48, 0, Color.BLACK);
             }
 
             return shutdownResponse;

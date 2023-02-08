@@ -12,45 +12,46 @@ namespace GoldenKeyMK3.Script
         public static WebsocketClient Client;
         public static ManualResetEvent ExitEvent = new ManualResetEvent(false);
 
-        private static List<int> _board = new List<int>{ 2, 5, 8, 10, 13, 16, 19, 21 };
+        private static List<int> _board = new List<int>{ 2, 5, 9, 11, 14, 17, 21, 23 };
 
         private static readonly Vector2[] Pos = new []
         {
-            new Vector2(GetScreenWidth() - 160, 382),
-            new Vector2(GetScreenWidth() - 230, 382),
-            new Vector2(GetScreenWidth() - 300, 382),
-            new Vector2(GetScreenWidth() - 370, 382),
-            new Vector2(GetScreenWidth() - 440, 382),
-            new Vector2(GetScreenWidth() - 510, 382),
+            // Line 1
+            new Vector2(868, 628), new Vector2(728, 628), new Vector2(588, 628),
+            new Vector2(448, 628), new Vector2(308, 628), new Vector2(168, 628),
 
-            new Vector2(GetScreenWidth() - 580, 332),
-            new Vector2(GetScreenWidth() - 580, 282),
-            new Vector2(GetScreenWidth() - 580, 232),
-            new Vector2(GetScreenWidth() - 580, 182),
-            new Vector2(GetScreenWidth() - 580, 132),
+            new Vector2(28, 628), // DJMAX island
 
-            new Vector2(GetScreenWidth() - 510, 82),
-            new Vector2(GetScreenWidth() - 440, 82),
-            new Vector2(GetScreenWidth() - 370, 82),
-            new Vector2(GetScreenWidth() - 300, 82),
-            new Vector2(GetScreenWidth() - 230, 82),
-            new Vector2(GetScreenWidth() - 160, 82),
+            // Line 2
+            new Vector2(28, 528), new Vector2(28, 428), new Vector2(28, 328),
+            new Vector2(28, 228), new Vector2(28, 128),
 
-            new Vector2(GetScreenWidth() - 90, 132),
-            new Vector2(GetScreenWidth() - 90, 182),
-            new Vector2(GetScreenWidth() - 90, 232),
-            new Vector2(GetScreenWidth() - 90, 282),
-            new Vector2(GetScreenWidth() - 90, 332),
+            // Line 3
+            new Vector2(168, 28), new Vector2(308, 28), new Vector2(448, 28),
+            new Vector2(588, 28), new Vector2(728, 28), new Vector2(868, 28),
+
+            new Vector2(1008, 28), // EZ2ON island
+
+            // Line 4
+            new Vector2(1008, 128), new Vector2(1008, 228), new Vector2(1008, 328),
+            new Vector2(1008, 428), new Vector2(1008, 528),
         };
 
         private static ImmutableList<(string Name, int Idx, string Song)> _requests =
             ImmutableList<(string Name, int Idx, string Song)>.Empty;
-        private static bool _switch;
+        private static ImmutableList<(string Name, string song)> _usedList =
+            ImmutableList<(string Name, string song)>.Empty;
+
         private static readonly Texture2D BaseBoard = LoadTexture("Resource/baseboard.png");
+        private static bool _switch;
+        private static int _idx = -1;
+        private static int[] _frames = { 0, 0, 0 };
+        private static int[] _ypos = { 0, 0, 0 };
 
         public static void DrawChat(bool shutdownRequest)
         {
             DrawBoard(shutdownRequest);
+            DrawButton(shutdownRequest);
         }
 
         public static async void Connect()
@@ -80,42 +81,61 @@ namespace GoldenKeyMK3.Script
 
         private static void DrawBoard(bool shutdownRequest)
         {
-            var text = _switch ? "재설정" : "시작";
-
-            DrawTexture(BaseBoard, GetScreenWidth() - 588, 74, Color.WHITE);
+            DrawTextureEx(BaseBoard, new Vector2(12, 12), 0, 2.0f, Color.WHITE);
 
             for (int i = 0; i < Pos.Length; i++)
             {
-                var button = new Rectangle(Pos[i].X, Pos[i].Y, 70, 50);
-                var buttonColor = _board.Contains(i + 1) ? Color.YELLOW : Color.WHITE;
-                if (CheckCollisionPointRec(GetMousePosition(), button) && !shutdownRequest)
-                {
-                    if (!_switch) ChangeState(i);
-                    else text = _board.Contains(i + 1) ? "황금열쇠" : $"{FindAllSongs(i + 1).Count}곡";
-                    buttonColor = Color.RED;
-                }
-                DrawRectangleRec(button, buttonColor);
-            }
+                // Slot
+                var slot = new Rectangle(Pos[i].X + 2, Pos[i].Y + 2, 138, 98);
+                var slotColor = _board.Contains(i + 1) ? Color.YELLOW : Color.WHITE;
+                if (i == _idx) slotColor = Color.RED;
 
-            var centerButton = new Rectangle(GetScreenWidth() - 498, 144, 396, 226);
-            var centerColor = Color.LIGHTGRAY;
-            var textColor = Color.BLACK;
-            if (CheckCollisionPointRec(GetMousePosition(), centerButton) && !shutdownRequest)
+                if (!shutdownRequest && CheckCollisionPointRec(GetMousePosition(), slot))
+                {
+                    if (IsMouseButtonPressed(0)) OnClick(i);
+                    slotColor = Color.ORANGE;
+                }
+
+                DrawRectangleRec(slot, slotColor);
+
+                // Text
+                var count = _board.Contains(i + 1) ? "X" : FindAllSongs(i + 1).Count.ToString();
+                var countPos = new Vector2(Pos[i].X + (140 - MeasureText(count, 72)) * 0.5f, Pos[i].Y + 14);
+
+                DrawText(count, (int)countPos.X, (int)countPos.Y, 72, Color.BLACK);
+            }
+        }
+
+        private static void DrawButton(bool shutdownRequest)
+        {
+            var button = new Rectangle(12, GetScreenHeight() - 72, 160, 60);
+            var buttonColor = Fade(Color.SKYBLUE, 0.5f);
+            var text = _switch ? "재설정" : "시작";
+            var textLen = MeasureTextEx(Program.MainFont, text, 48, 0).X;
+
+            if (!shutdownRequest && CheckCollisionPointRec(GetMousePosition(), button))
             {
                 if (IsMouseButtonPressed(0))
                 {
-                    if (_switch) _requests = _requests.Clear();
+                    if (_switch)
+                    {
+                        _requests = _requests.Clear();
+                        _idx = -1;
+                    }
                     _switch = !_switch;
                 }
-                centerColor = Color.DARKGRAY;
-                textColor = Color.WHITE;
+                buttonColor = Color.SKYBLUE;
             }
-            DrawRectangleRec(centerButton, centerColor);
 
-            var textSize = MeasureTextEx(Program.MainFont, text, 84, 0);
-            var textPos = new Vector2(GetScreenWidth() - 300 - textSize.X * 0.5f,
-                242 - textSize.Y * 0.5f);
-            DrawTextEx(Program.MainFont, text, textPos, 84, 0, textColor);
+            DrawRectangleRec(button, buttonColor);
+            DrawTextEx(Program.MainFont, text, new Vector2(12 + (160 - textLen) * 0.5f, GetScreenHeight() - 66), 48, 0,
+                Color.BLACK);
+        }
+
+        private static void DrawSonglist()
+        {
+            var songlist = FindAllSongs(_idx + 1);
+            var panels = MarqueeOrder(songlist);
         }
 
         // Main Methods
@@ -141,7 +161,7 @@ namespace GoldenKeyMK3.Script
 
             if (content.Length < 3) return false;
             if (!int.TryParse(content[1], out var idx)) return false;
-            if (idx is < 1 or > 22) return false;
+            if (idx is < 1 or > 24) return false;
             if (_board.Contains(idx)) return false;
 
             return true;
@@ -174,14 +194,36 @@ namespace GoldenKeyMK3.Script
         private static List<(string, string)> FindAllSongs(int idx)
             => _requests.FindAll(x => x.Idx == idx).Select(x => (x.Name, x.Song)).ToList();
 
-        private static void ChangeState(int i)
+        private static void OnClick(int i)
         {
-            if (IsMouseButtonPressed(0))
+            if (_switch)
             {
-                if (_board.Contains(i + 1)) _board.Remove(i + 1);
-                else _board.Add(i + 1);
+                if (!_board.Contains(i + 1)) _idx = i;
+            }
+            else
+            {
+                if (i != 6 && i != 18)
+                {
+                    if (_board.Contains(i + 1)) _board.Remove(i + 1);
+                    else _board.Add(i + 1);
+                }
                 _board.Sort();
             }
+        }
+
+        private static List<string> MarqueePlayer()
+        {
+
+        }
+
+        private static List<string> MarqueeSong()
+        {
+
+        }
+
+        private static List<(string, string)> MarqueeOrder(List<(string, string)> songlist)
+        {
+
         }
     }
 }

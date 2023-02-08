@@ -7,6 +7,13 @@ using static Raylib_cs.Raylib;
 
 namespace GoldenKeyMK3.Script
 {
+    public enum PollState
+    {
+        idle = 0,
+        active,
+        result
+    }
+
     public class Chat
     {
         public static WebsocketClient Client;
@@ -38,20 +45,24 @@ namespace GoldenKeyMK3.Script
         };
 
         private static ImmutableList<(string Name, int Idx, string Song)> _requests =
-            ImmutableList<(string Name, int Idx, string Song)>.Empty;
-        private static ImmutableList<(string Name, string song)> _usedList =
-            ImmutableList<(string Name, string song)>.Empty;
+            ImmutableList<(string, int, string)>.Empty;
+        private static ImmutableList<(string Name, string Song)> _usedList =
+            ImmutableList<(string, string)>.Empty;
+        
+        private static (string Name, string Song) _currSong;
 
         private static readonly Texture2D BaseBoard = LoadTexture("Resource/baseboard.png");
+        private static readonly Texture2D CenterBoard = LoadTexture("Resource/alert.png");
         private static bool _switch;
         private static int _idx = -1;
-        private static int[] _frames = { 0, 0, 0 };
-        private static int[] _ypos = { 0, 0, 0 };
+        private static int[] _head = { 0, 0 };
+        private static int[] _ypos = { 0, 0 };
 
         public static void DrawChat(bool shutdownRequest)
         {
             DrawBoard(shutdownRequest);
             DrawButton(shutdownRequest);
+            DrawSonglist();
         }
 
         public static async void Connect()
@@ -75,6 +86,7 @@ namespace GoldenKeyMK3.Script
         public static void Dispose()
         {
             UnloadTexture(BaseBoard);
+            UnloadTexture(CenterBoard);
         }
 
         // UIs
@@ -135,7 +147,22 @@ namespace GoldenKeyMK3.Script
         private static void DrawSonglist()
         {
             var songlist = FindAllSongs(_idx + 1);
-            var panels = MarqueeOrder(songlist);
+            var panels = VerticalMarquee(songlist, ref _ypos[0], ref _head[0]);
+
+            if (panels.Count > 0)
+            {
+                BeginScissorMode(184, 144, 808, 468);
+                for (int i = 0; i < panels.Count; i++)
+                {
+                    var pos = new Vector2(184, 144 + _ypos[0] + 42 * i);
+                    DrawTextEx(Program.MainFont, panels[i].Item2, new Vector2(pos.X + 12, pos.Y + 6), 36, 0, Color.BLACK);
+                }
+                EndScissorMode();
+            }
+            else DrawTexture(CenterBoard, 184, 144, Color.WHITE);
+            
+            if (!_switch) 
+                DrawTextEx(Program.MainFont, "※ 준비중입니다. 잠시만 기다려주세요.", new Vector2(196, 564), 36, 0, Color.RED);
         }
 
         // Main Methods
@@ -211,19 +238,24 @@ namespace GoldenKeyMK3.Script
             }
         }
 
-        private static List<string> MarqueePlayer()
+        private static List<(string, string)> VerticalMarquee(List<(string, string)> input, ref int ypos, ref int head)
         {
+            var count = (int)Math.Ceiling(468 / 42.0f);
+            if (input.Count >= count)
+            {
+                ypos -= 2;
+                if (ypos <= -42)
+                {
+                    head = (head + 1) % input.Count;
+                    ypos = 0;
+                }
+            }
+            else ypos = head = 0;
 
-        }
-
-        private static List<string> MarqueeSong()
-        {
-
-        }
-
-        private static List<(string, string)> MarqueeOrder(List<(string, string)> songlist)
-        {
-
+            var output = input.Skip(head).Take(count + 1).ToList();
+            if (input.Count >= count && output.Count < count + 1)
+                output.AddRange(input.Take(count + 1 - output.Count));
+            return output;
         }
     }
 }

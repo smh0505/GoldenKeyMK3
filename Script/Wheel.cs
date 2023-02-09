@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Numerics;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
@@ -29,7 +29,7 @@ namespace GoldenKeyMK3.Script
 
     public class Wheel
     {
-        public static ConcurrentBag<string> Waitlist = new ConcurrentBag<string>();
+        public static ImmutableList<string> Waitlist = ImmutableList<string>.Empty;
         public static List<WheelPanel> Options = new List<WheelPanel>();
         public static int Sum => Options.Sum(option => option.Count);
 
@@ -146,7 +146,7 @@ namespace GoldenKeyMK3.Script
         private static void AddOption()
         {
             List<string> optionList = Waitlist.ToList();
-            Waitlist.Clear();
+            Waitlist = Waitlist.Clear();
 
             foreach (var option in optionList)
             {

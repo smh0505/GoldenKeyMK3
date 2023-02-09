@@ -49,7 +49,7 @@ namespace GoldenKeyMK3.Script
                     if (msg.ToString().Contains("roulette"))
                     {
                         Regex re = new Regex(@".message.:.+? - (?<rValue>.+?).");
-                        Wheel.Waitlist.Add(re.Match(msg.ToString()).Groups["rValue"].ToString());
+                        Wheel.Waitlist = Wheel.Waitlist.Add(re.Match(msg.ToString()).Groups["rValue"].ToString());
 
                         //var roulette = Regex.Match(msg.ToString(), "\"message\":\"[^\"]* - [^\"]*\"").Value.Substring(10);
                         //var rValue = roulette.Split('-')[1].Replace("\"", "").Substring(1);

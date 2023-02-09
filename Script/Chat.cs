@@ -84,7 +84,7 @@ namespace GoldenKeyMK3.Script
                 await Client.Start();
                 Client.Send("CAP REQ :twitch.tv/commands twitch.tv/tags");
                 Client.Send("NICK justinfan1234");
-                Client.Send("JOIN #mson2017");
+                Client.Send("JOIN #arpa__");
                 ExitEvent.WaitOne();
             }
         }

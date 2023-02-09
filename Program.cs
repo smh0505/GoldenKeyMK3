@@ -16,7 +16,7 @@ namespace GoldenKeyMK3
             InitWindow(1920, 1080, "황금열쇠 MK3");
             SetTargetFPS(60);
 
-            SaveLoad.LoadSetting();
+            if (File.Exists("default.yml")) SaveLoad.LoadSetting();
 
             while (!_shutdown)
             {
@@ -45,7 +45,7 @@ namespace GoldenKeyMK3
             Chat.ExitEvent.Set();
 
             // Save log
-            SaveLoad.SaveLog();
+            if (Wheel.Options.Any()) SaveLoad.SaveLog();
 
             // Dispose
             UnloadFont(MainFont);

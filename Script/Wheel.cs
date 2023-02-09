@@ -112,12 +112,8 @@ namespace GoldenKeyMK3.Script
 
             if (CheckCollisionPointCircle(GetMousePosition(), center, 60.0f) && !shutdownRequest)
             {
-                if (IsMouseButtonPressed(0))
-                {
-                    _state = (WheelState)(((int)_state + 1) % 4);
-                    if (_state == WheelState.Idle) RemoveOption(Result());
-                }
-                else buttonColor = Color.GREEN;
+                if (IsMouseButtonPressed(0)) OnClick();
+                buttonColor = Color.GREEN;
             }
 
             DrawCircleV(center, 60.0f, buttonColor);
@@ -195,6 +191,12 @@ namespace GoldenKeyMK3.Script
                 return target;
             }
             return new WheelPanel(string.Empty, 1, Color.WHITE);
+        }
+
+        private static void OnClick()
+        {
+            _state = (WheelState)(((int)_state + 1) % 4);
+            if (_state == WheelState.Idle) RemoveOption(Result());
         }
     }
 }

@@ -6,18 +6,12 @@ namespace GoldenKeyMK3.Script
 {
     public class LoadScene
     {
-        private static string[] _files;
-        private static List<string> _logs;
-        private static string[] _page;
         private static List<WheelPanel> _options;
 
         private static int _idx;
-        private static int _count;
-        private static int _pagenum;
         private static int _frames;
 
         private static int _idx2;
-        private static int _count2;
         private static int _ypos;
 
         private static readonly string[] Texts =
@@ -29,13 +23,13 @@ namespace GoldenKeyMK3.Script
 
         public static bool DrawLoad(bool shutdownRequest)
         {
-            _files = Directory.GetFiles("Logs");
-            _logs = _files.Select(o => File.GetCreationTime(o).ToString("g")).ToList();
-            if (SaveLoad.DefaultOptions.Any()) _logs.Insert(0, "기본 설정");
+            var files = Directory.GetFiles("Logs");
+            var logs = files.Select(o => File.GetCreationTime(o).ToString("g")).ToList();
+            if (SaveLoad.DefaultOptions.Any()) logs.Insert(0, "기본 설정");
 
-            DrawList();
+            DrawList(logs);
             DrawTextEx(Program.MainFont, Texts[0], new Vector2(560, 40), 72, 0, Color.BLACK);
-            DrawTextEx(Program.MainFont, Texts[1] + _logs[_idx], new Vector2(560, 132), 48, 0, Color.BLACK);
+            DrawTextEx(Program.MainFont, Texts[1] + logs[_idx], new Vector2(560, 132), 48, 0, Color.BLACK);
             if (!SaveLoad.DefaultOptions.Any())
                 DrawTextEx(Program.MainFont, Texts[2],
                     new Vector2(584 + MeasureTextEx(Program.MainFont, Texts[0], 72, 0).X, 76),
@@ -43,31 +37,31 @@ namespace GoldenKeyMK3.Script
 
             if (_options is not null) DrawLog();
 
-            if (!shutdownRequest) return Control();
+            if (!shutdownRequest) return Control(files, logs);
             return false;
         }
 
         // UIs
 
-        private static void DrawList()
+        private static void DrawList(List<string> logs)
         {
-            _count = (int)Math.Floor((GetScreenHeight() - 80) / 48.0f);
-            _pagenum = _idx / _count;
-            _page = _logs.Skip(_pagenum * _count).Take(_count).ToArray();
+            var count = (int)Math.Floor((GetScreenHeight() - 80) / 48.0f);
+            var pagenum = _idx / count;
+            var page = logs.Skip(pagenum * count).Take(count).ToArray();
 
             DrawRectangle(40, 40, 480, GetScreenHeight() - 80, Color.WHITE);
             BeginScissorMode(40, 40, 480, GetScreenHeight() - 80);
-            for (int j = 0; j < _page.Length; j++)
+            for (int j = 0; j < page.Length; j++)
             {
                 Color textColor = Color.BLACK;
-                if (j == _idx % _count)
+                if (j == _idx % count)
                 {
                     DrawRectangle(40, 40 + 48 * j, 480, 48, Color.DARKGRAY);
                     textColor = Color.WHITE;
                 }
 
                 Vector2 pos = new(46, 46 + 48 * j);
-                DrawTextEx(Program.MainFont, _page[j], pos, 36, 0, textColor);
+                DrawTextEx(Program.MainFont, page[j], pos, 36, 0, textColor);
             }
             EndScissorMode();
         }
@@ -90,17 +84,17 @@ namespace GoldenKeyMK3.Script
 
         // Controls
 
-        private static bool Control()
+        private static bool Control(string[] files, List<string> logs)
         {
             if (IsKeyDown(KeyboardKey.KEY_UP))
             {
-                if (_frames == 0) _idx = _idx == 0 ? _logs.Count - 1 : _idx - 1;
+                if (_frames == 0) _idx = _idx == 0 ? logs.Count - 1 : _idx - 1;
                 _frames = _frames == 6 ? 0 : _frames + 1;
             }
 
             if (IsKeyDown(KeyboardKey.KEY_DOWN))
             {
-                if (_frames == 0) _idx = _idx == _logs.Count - 1 ? 0 : _idx + 1;
+                if (_frames == 0) _idx = _idx == logs.Count - 1 ? 0 : _idx + 1;
                 _frames = _frames == 6 ? 0 : _frames + 1;
             }
 
@@ -108,8 +102,8 @@ namespace GoldenKeyMK3.Script
             {
                 _frames = 0;
                 if (SaveLoad.DefaultOptions.Any())
-                    _options = _idx == 0 ? SaveLoad.DefaultOptions : SaveLoad.LoadLog(_files[_idx - 1]);
-                else _options = SaveLoad.LoadLog(_files[_idx]);
+                    _options = _idx == 0 ? SaveLoad.DefaultOptions : SaveLoad.LoadLog(files[_idx - 1]);
+                else _options = SaveLoad.LoadLog(files[_idx]);
             }
 
             if (IsKeyPressed(KeyboardKey.KEY_ENTER))
@@ -123,8 +117,8 @@ namespace GoldenKeyMK3.Script
         private static List<WheelPanel> Marquee()
         {
             // Translates position upward
-            _count2 = (int)Math.Ceiling((GetScreenHeight() - 240) / 48.0f);
-            if (_options.Count >= _count2)
+            var count = (int)Math.Ceiling((GetScreenHeight() - 240) / 48.0f);
+            if (_options.Count >= count)
             {
                 _ypos -= 2;
                 if (_ypos <= -48)
@@ -136,9 +130,9 @@ namespace GoldenKeyMK3.Script
             else _ypos = _idx2 = 0;
 
             // Chooses items to show
-            var panels = _options.Skip(_idx2).Take(_count2 + 1).ToList();
-            if (_options.Count >= _count2 && panels.Count < _count2 + 1)
-                panels.AddRange(_options.Take(_count2 + 1 - panels.Count));
+            var panels = _options.Skip(_idx2).Take(count + 1).ToList();
+            if (_options.Count >= count && panels.Count < count + 1)
+                panels.AddRange(_options.Take(count + 1 - panels.Count));
             return panels;
         }
     }

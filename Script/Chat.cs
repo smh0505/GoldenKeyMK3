@@ -52,11 +52,15 @@ namespace GoldenKeyMK3.Script
 
         private static readonly Texture2D BaseBoard = LoadTexture("Resource/baseboard.png");
         private static readonly Texture2D CenterBoard = LoadTexture("Resource/alert.png");
+        private static readonly Texture2D ResultBoard = LoadTexture("Resource/result.png");
+
         private static bool _switch;
         private static int _idx = -1;
         private static int _target;
         private static int _frame;
         private static int _frameLimit;
+
+        
         private static readonly Random Rnd = new Random();
         private static readonly int[] Head = { 0, 0 };
         private static readonly int[] YPos = { 0, 0 };
@@ -94,6 +98,7 @@ namespace GoldenKeyMK3.Script
         {
             UnloadTexture(BaseBoard);
             UnloadTexture(CenterBoard);
+            UnloadTexture(ResultBoard);
         }
 
         // UIs
@@ -181,7 +186,8 @@ namespace GoldenKeyMK3.Script
             }
 
             DrawRectangleRec(button, buttonColor);
-            DrawTextEx(Program.MainFont, text, new Vector2(button.x + (button.width - textLen) * 0.5f, button.y + 6), 48, 0, Color.BLACK);
+            DrawTextEx(Program.MainFont, text, 
+                new Vector2(button.x + (button.width - textLen) * 0.5f, button.y + 6), 48, 0, Color.BLACK);
         }
 
         private static void DrawSonglist()
@@ -210,9 +216,8 @@ namespace GoldenKeyMK3.Script
             UpdateFrame();
             var current = _dummy[_target];
 
-            DrawRectangle(184, 144, 808, 468, Color.DARKGRAY);
+            DrawTexture(ResultBoard, 184, 144, Color.WHITE);
             BeginScissorMode(184, 144, 808, 468);
-            DrawTextEx(Program.MainFont, "다음 곡은", new Vector2(196, 156), 36, 0, Color.WHITE);
             DrawTextEx(Program.MainFont, current.Item2, new Vector2(196, 204), 72, 0, Color.YELLOW);
             DrawTextEx(Program.MainFont, $"By {current.Item1}", new Vector2(196, 276), 48, 0, Color.WHITE);
             EndScissorMode();
@@ -229,7 +234,8 @@ namespace GoldenKeyMK3.Script
                 for (int i = 0; i < panels.Count; i++)
                 {
                     var pos = new Vector2(GetScreenWidth() - 744, 74 + YPos[0] + 30 * i);
-                    DrawTextEx(Program.MainFont, $"{panels[i].Item1} | {panels[i].Item2}", new Vector2(pos.X + 12, pos.Y + 6), 24, 0, Color.WHITE);
+                    DrawTextEx(Program.MainFont, $"{panels[i].Item1} | {panels[i].Item2}", 
+                        new Vector2(pos.X + 12, pos.Y + 6), 24, 0, Color.WHITE);
                 }
                 EndScissorMode();
             }
@@ -296,11 +302,8 @@ namespace GoldenKeyMK3.Script
 
         private static void OnClick(int i)
         {
-            if (_switch)
-            {
-                if (!Board.Contains(i + 1)) _idx = i;
-            }
-            else
+            if (_switch && !Board.Contains(i + 1)) _idx = i;
+            else if (!_switch)
             {
                 if (i != 6 && i != 18)
                 {
@@ -311,7 +314,8 @@ namespace GoldenKeyMK3.Script
             }
         }
 
-        private static List<(string, string)> VerticalMarquee(List<(string, string)> input, int textHeight, int height, ref int ypos, ref int head)
+        private static List<(string, string)> VerticalMarquee
+            (List<(string, string)> input, int textHeight, int height, ref int ypos, ref int head)
         {
             var count = (int)Math.Ceiling(height / (double)textHeight + 6);
             if (input.Count >= count)

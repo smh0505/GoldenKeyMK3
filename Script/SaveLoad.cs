@@ -15,25 +15,24 @@ namespace GoldenKeyMK3.Script
         public static List<WheelPanel> DefaultOptions;
         private static Setting _setting;
 
+        // Loading
+
         public static void LoadSetting()
         {
-            if (File.Exists("default.yml"))
-            {
-                // Read Default File
-                StreamReader r = new StreamReader("default.yml");
-                var data = r.ReadToEnd();
-                r.Close();
+            // Read Default File
+            StreamReader r = new StreamReader("default.yml");
+            var data = r.ReadToEnd();
+            r.Close();
 
-                // Deserialize Setting
-                var deserializer = new DeserializerBuilder()
-                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                    .Build();
-                _setting = deserializer.Deserialize<Setting>(data);
+            // Deserialize Setting
+            var deserializer = new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .Build();
+            _setting = deserializer.Deserialize<Setting>(data);
 
-                // Insert Setting
-                Login.Input = string.IsNullOrEmpty(_setting.Key) ? string.Empty : _setting.Key;
-                DefaultOptions = _setting.Values == null ? new List<WheelPanel>() : LoadPanels();
-            }
+            // Insert Setting
+            Login.Input = string.IsNullOrEmpty(_setting.Key) ? string.Empty : _setting.Key;
+            DefaultOptions = _setting.Values == null ? new List<WheelPanel>() : LoadPanels();
         }
 
         public static List<WheelPanel> LoadLog(string filename)
@@ -46,29 +45,6 @@ namespace GoldenKeyMK3.Script
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
             return deserializer.Deserialize<List<WheelPanel>>(data);
-        }
-
-        public static void SaveLog()
-        {
-            if (Wheel.Options.Any())
-            {
-                // Create Log File
-                Directory.CreateDirectory("Logs");
-                var time = DateTime.Now.ToString("s").Replace(':', '-').Replace('T', '-');
-                var filename = $"Logs/log-{time}.yml";
-
-                // Serialize Log
-                var serializer = new SerializerBuilder()
-                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                    .Build();
-                var optionList = serializer.Serialize(Wheel.Options);
-
-                // Write Log File
-                using FileStream file = File.Create(filename);
-                StreamWriter w = new StreamWriter(file);
-                w.Write(optionList);
-                w.Close();
-            }
         }
 
         private static List<WheelPanel> LoadPanels()
@@ -93,6 +69,28 @@ namespace GoldenKeyMK3.Script
                 }
             }
             return panels;
+        }
+
+        // Saving
+
+        public static void SaveLog()
+        {
+            // Create Log File
+            Directory.CreateDirectory("Logs");
+            var time = DateTime.Now.ToString("s").Replace(':', '-').Replace('T', '-');
+            var filename = $"Logs/log-{time}.yml";
+
+            // Serialize Log
+            var serializer = new SerializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .Build();
+            var optionList = serializer.Serialize(Wheel.Options);
+
+            // Write Log File
+            using FileStream file = File.Create(filename);
+            StreamWriter w = new StreamWriter(file);
+            w.Write(optionList);
+            w.Close();
         }
     }
 }

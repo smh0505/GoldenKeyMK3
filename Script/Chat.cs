@@ -48,6 +48,7 @@ namespace GoldenKeyMK3.Script
             ImmutableList<(string, int, string)>.Empty;
         private static ImmutableList<(string Name, string Song)> _usedList =
             ImmutableList<(string, string)>.Empty;
+        private static List<(string Name, string Song)> _dummy = new List<(string Name, string Song)>();
 
         private static readonly Texture2D BaseBoard = LoadTexture("Resource/baseboard.png");
         private static readonly Texture2D CenterBoard = LoadTexture("Resource/alert.png");
@@ -166,10 +167,11 @@ namespace GoldenKeyMK3.Script
                             _state = PollState.Active;
                             _target = Rnd.Next(FindAllSongs(_idx + 1).Count);
                             _frameLimit = Rnd.Next(61) + 120;
+                            _dummy = FindAllSongs(_idx + 1);
                             break;
                         default:
                             _state = PollState.Idle;
-                            var current = FindAllSongs(_idx + 1)[_target];
+                            var current = _dummy[_target];
                             _usedList = _usedList.Add(current);
                             _requests = _requests.RemoveAll(x => x.Name == current.Item1);
                             break;
@@ -206,7 +208,7 @@ namespace GoldenKeyMK3.Script
         private static void DrawResult()
         {
             UpdateFrame();
-            var current = FindAllSongs(_idx + 1)[_target];
+            var current = _dummy[_target];
 
             DrawRectangle(184, 144, 808, 468, Color.DARKGRAY);
             BeginScissorMode(184, 144, 808, 468);
@@ -246,7 +248,7 @@ namespace GoldenKeyMK3.Script
                 if (!_usedList.Select(x => x.Name).Contains(name))
                 {
                     var order = GetOrder(objects["content"].ToString());
-                    if (_state != PollState.Active || order.Item1 != _idx) _requests = _requests.Add((name, order.Item1, order.Item2));
+                    _requests = _requests.Add((name, order.Item1, order.Item2));
                     if (_requests.Count(x => x.Name == name) > 3)
                         _requests = _requests.Remove(_requests.First(x => x.Name == name));
                 }
@@ -335,7 +337,7 @@ namespace GoldenKeyMK3.Script
             {
                 _frame++;
                 _target++;
-                _target %= FindAllSongs(_idx + 1).Count;
+                _target %= _dummy.Count;
                 if (_frame >= _frameLimit)
                 {
                     _state = PollState.Result;

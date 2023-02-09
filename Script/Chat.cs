@@ -9,9 +9,9 @@ namespace GoldenKeyMK3.Script
 {
     public enum PollState
     {
-        idle = 0,
-        active,
-        result
+        Idle = 0,
+        Active,
+        Result
     }
 
     public class Chat
@@ -19,7 +19,7 @@ namespace GoldenKeyMK3.Script
         public static WebsocketClient Client;
         public static ManualResetEvent ExitEvent = new ManualResetEvent(false);
 
-        private static List<int> _board = new List<int>{ 2, 5, 9, 11, 14, 17, 21, 23 };
+        private static readonly List<int> Board = new List<int>{ 2, 5, 9, 11, 14, 17, 21, 23 };
 
         private static readonly Vector2[] Pos = new []
         {
@@ -48,21 +48,27 @@ namespace GoldenKeyMK3.Script
             ImmutableList<(string, int, string)>.Empty;
         private static ImmutableList<(string Name, string Song)> _usedList =
             ImmutableList<(string, string)>.Empty;
-        
-        private static (string Name, string Song) _currSong;
 
         private static readonly Texture2D BaseBoard = LoadTexture("Resource/baseboard.png");
         private static readonly Texture2D CenterBoard = LoadTexture("Resource/alert.png");
         private static bool _switch;
         private static int _idx = -1;
-        private static int[] _head = { 0, 0 };
-        private static int[] _ypos = { 0, 0 };
+        private static int _target;
+        private static int _frame;
+        private static int _frameLimit;
+        private static readonly Random Rnd = new Random();
+        private static readonly int[] Head = { 0, 0 };
+        private static readonly int[] YPos = { 0, 0 };
+        private static PollState _state = PollState.Idle;
 
         public static void DrawChat(bool shutdownRequest)
         {
             DrawBoard(shutdownRequest);
-            DrawButton(shutdownRequest);
+            if (IsIdle(shutdownRequest)) DrawResetButton();
+            if (IsReadyToSelect(shutdownRequest)) DrawPollButton();
             DrawSonglist();
+            DrawUsedList();
+            if (_state != PollState.Idle) DrawResult();
         }
 
         public static async void Connect()
@@ -99,33 +105,33 @@ namespace GoldenKeyMK3.Script
             {
                 // Slot
                 var slot = new Rectangle(Pos[i].X + 2, Pos[i].Y + 2, 138, 98);
-                var slotColor = _board.Contains(i + 1) ? Color.YELLOW : Color.WHITE;
+                var slotColor = Board.Contains(i + 1) ? Color.YELLOW : Color.WHITE;
                 if (i == _idx) slotColor = Color.RED;
 
                 if (!shutdownRequest && CheckCollisionPointRec(GetMousePosition(), slot))
                 {
-                    if (IsMouseButtonPressed(0)) OnClick(i);
+                    if (IsMouseButtonPressed(0) && _state == PollState.Idle) OnClick(i);
                     slotColor = Color.ORANGE;
                 }
 
                 DrawRectangleRec(slot, slotColor);
 
                 // Text
-                var count = _board.Contains(i + 1) ? "X" : FindAllSongs(i + 1).Count.ToString();
+                var count = Board.Contains(i + 1) ? "X" : FindAllSongs(i + 1).Count.ToString();
                 var countPos = new Vector2(Pos[i].X + (140 - MeasureText(count, 72)) * 0.5f, Pos[i].Y + 14);
 
                 DrawText(count, (int)countPos.X, (int)countPos.Y, 72, Color.BLACK);
             }
         }
 
-        private static void DrawButton(bool shutdownRequest)
+        private static void DrawResetButton()
         {
             var button = new Rectangle(12, GetScreenHeight() - 72, 160, 60);
             var buttonColor = Fade(Color.SKYBLUE, 0.5f);
             var text = _switch ? "재설정" : "시작";
             var textLen = MeasureTextEx(Program.MainFont, text, 48, 0).X;
 
-            if (!shutdownRequest && CheckCollisionPointRec(GetMousePosition(), button))
+            if (CheckCollisionPointRec(GetMousePosition(), button))
             {
                 if (IsMouseButtonPressed(0))
                 {
@@ -140,29 +146,91 @@ namespace GoldenKeyMK3.Script
             }
 
             DrawRectangleRec(button, buttonColor);
-            DrawTextEx(Program.MainFont, text, new Vector2(12 + (160 - textLen) * 0.5f, GetScreenHeight() - 66), 48, 0,
-                Color.BLACK);
+            DrawTextEx(Program.MainFont, text, new Vector2(button.x + (button.width - textLen) * 0.5f, button.y + 6), 48, 0, Color.BLACK);
+        }
+
+        private static void DrawPollButton()
+        {
+            var button = new Rectangle(GetScreenWidth() - 172, GetScreenHeight() - 144, 160, 60);
+            var buttonColor = Fade(Color.LIME, 0.5f);
+            var text = _state == PollState.Result ? "다음" : "추첨";
+            var textLen = MeasureTextEx(Program.MainFont, text, 48, 0).X;
+
+            if (CheckCollisionPointRec(GetMousePosition(), button))
+            {
+                if (IsMouseButtonPressed(0))
+                {
+                    switch (_state)
+                    {
+                        case PollState.Idle:
+                            _state = PollState.Active;
+                            _target = Rnd.Next(FindAllSongs(_idx + 1).Count);
+                            _frameLimit = Rnd.Next(61) + 120;
+                            break;
+                        default:
+                            _state = PollState.Idle;
+                            var current = FindAllSongs(_idx + 1)[_target];
+                            _usedList = _usedList.Add(current);
+                            _requests = _requests.RemoveAll(x => x.Name == current.Item1);
+                            break;
+                    }
+                }
+                buttonColor = Color.LIME;
+            }
+
+            DrawRectangleRec(button, buttonColor);
+            DrawTextEx(Program.MainFont, text, new Vector2(button.x + (button.width - textLen) * 0.5f, button.y + 6), 48, 0, Color.BLACK);
         }
 
         private static void DrawSonglist()
         {
             var songlist = FindAllSongs(_idx + 1);
-            var panels = VerticalMarquee(songlist, ref _ypos[0], ref _head[0]);
+            var panels = VerticalMarquee(songlist, 36, 468, ref YPos[0], ref Head[0]);
 
             if (panels.Count > 0)
             {
                 BeginScissorMode(184, 144, 808, 468);
                 for (int i = 0; i < panels.Count; i++)
                 {
-                    var pos = new Vector2(184, 144 + _ypos[0] + 42 * i);
+                    var pos = new Vector2(184, 144 + YPos[0] + 42 * i);
                     DrawTextEx(Program.MainFont, panels[i].Item2, new Vector2(pos.X + 12, pos.Y + 6), 36, 0, Color.BLACK);
                 }
                 EndScissorMode();
             }
             else DrawTexture(CenterBoard, 184, 144, Color.WHITE);
-            
-            if (!_switch) 
+
+            if (!_switch)
                 DrawTextEx(Program.MainFont, "※ 준비중입니다. 잠시만 기다려주세요.", new Vector2(196, 564), 36, 0, Color.RED);
+        }
+
+        private static void DrawResult()
+        {
+            UpdateFrame();
+            var current = FindAllSongs(_idx + 1)[_target];
+
+            DrawRectangle(184, 144, 808, 468, Color.DARKGRAY);
+            BeginScissorMode(184, 144, 808, 468);
+            DrawTextEx(Program.MainFont, "다음 곡은", new Vector2(196, 156), 36, 0, Color.WHITE);
+            DrawTextEx(Program.MainFont, current.Item2, new Vector2(196, 204), 72, 0, Color.YELLOW);
+            DrawTextEx(Program.MainFont, $"By {current.Item1}", new Vector2(196, 276), 48, 0, Color.WHITE);
+            EndScissorMode();
+        }
+
+        private static void DrawUsedList()
+        {
+            var panels = VerticalMarquee(_usedList.ToList(), 24, 670, ref YPos[1], ref Head[1]);
+
+            DrawRectangle(GetScreenWidth() - 744, 74, 732, 690, Color.DARKBLUE);
+            if (panels.Count > 0)
+            {
+                BeginScissorMode(GetScreenWidth() - 744, 74, 732, 690);
+                for (int i = 0; i < panels.Count; i++)
+                {
+                    var pos = new Vector2(GetScreenWidth() - 744, 74 + YPos[0] + 30 * i);
+                    DrawTextEx(Program.MainFont, $"{panels[i].Item1} | {panels[i].Item2}", new Vector2(pos.X + 12, pos.Y + 6), 24, 0, Color.WHITE);
+                }
+                EndScissorMode();
+            }
         }
 
         // Main Methods
@@ -175,10 +243,13 @@ namespace GoldenKeyMK3.Script
             if (IsValid(objects["content"].ToString()))
             {
                 var name = GetUsername(objects["tags"].ToString(), objects["source"].ToString());
-                var order = GetOrder(objects["content"].ToString());
-                _requests = _requests.Add((name, order.Item1, order.Item2));
-                if (_requests.Count(x => x.Name == name) > 3)
-                    _requests = _requests.Remove(_requests.First(x => x.Name == name));
+                if (!_usedList.Select(x => x.Name).Contains(name))
+                {
+                    var order = GetOrder(objects["content"].ToString());
+                    _requests = _requests.Add((name, order.Item1, order.Item2));
+                    if (_requests.Count(x => x.Name == name) > 3)
+                        _requests = _requests.Remove(_requests.First(x => x.Name == name));
+                }
             }
         }
 
@@ -189,7 +260,7 @@ namespace GoldenKeyMK3.Script
             if (content.Length < 3) return false;
             if (!int.TryParse(content[1], out var idx)) return false;
             if (idx is < 1 or > 24) return false;
-            if (_board.Contains(idx)) return false;
+            if (Board.Contains(idx)) return false;
 
             return true;
         }
@@ -225,26 +296,26 @@ namespace GoldenKeyMK3.Script
         {
             if (_switch)
             {
-                if (!_board.Contains(i + 1)) _idx = i;
+                if (!Board.Contains(i + 1)) _idx = i;
             }
             else
             {
                 if (i != 6 && i != 18)
                 {
-                    if (_board.Contains(i + 1)) _board.Remove(i + 1);
-                    else _board.Add(i + 1);
+                    if (Board.Contains(i + 1)) Board.Remove(i + 1);
+                    else Board.Add(i + 1);
                 }
-                _board.Sort();
+                Board.Sort();
             }
         }
 
-        private static List<(string, string)> VerticalMarquee(List<(string, string)> input, ref int ypos, ref int head)
+        private static List<(string, string)> VerticalMarquee(List<(string, string)> input, int textHeight, int height, ref int ypos, ref int head)
         {
-            var count = (int)Math.Ceiling(468 / 42.0f);
+            var count = (int)Math.Ceiling(height / (double)textHeight + 6);
             if (input.Count >= count)
             {
                 ypos -= 2;
-                if (ypos <= -42)
+                if (ypos <= -(textHeight + 6))
                 {
                     head = (head + 1) % input.Count;
                     ypos = 0;
@@ -257,5 +328,28 @@ namespace GoldenKeyMK3.Script
                 output.AddRange(input.Take(count + 1 - output.Count));
             return output;
         }
+
+        private static void UpdateFrame()
+        {
+            if (_state != PollState.Result)
+            {
+                _frame++;
+                _target++;
+                _target %= FindAllSongs(_idx + 1).Count;
+                if (_frame >= _frameLimit)
+                {
+                    _state = PollState.Result;
+                    _frame = 0;
+                }
+            }
+        }
+
+        // Conditions
+
+        private static bool IsIdle(bool shutdownRequest)
+            => !shutdownRequest && _state == PollState.Idle;
+
+        private static bool IsReadyToSelect(bool shutdownRequest)
+            => !shutdownRequest && _state != PollState.Active && _idx >= 0 && FindAllSongs(_idx + 1).Count > 0;
     }
 }

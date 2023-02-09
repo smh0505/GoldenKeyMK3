@@ -246,7 +246,7 @@ namespace GoldenKeyMK3.Script
                 if (!_usedList.Select(x => x.Name).Contains(name))
                 {
                     var order = GetOrder(objects["content"].ToString());
-                    _requests = _requests.Add((name, order.Item1, order.Item2));
+                    if (_state != PollState.Active || order.Item1 != _idx) _requests = _requests.Add((name, order.Item1, order.Item2));
                     if (_requests.Count(x => x.Name == name) > 3)
                         _requests = _requests.Remove(_requests.First(x => x.Name == name));
                 }

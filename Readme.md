@@ -1,6 +1,6 @@
 # 황금열쇠 Mk.3
 
-## 현재 버전 : 1.1
+## 현재 버전 : 1.2
 
 - 인트로 애니메이션이 추가되었습니다.
   - 날코딩으로 만드느라 힘들었습니다. 읽어보고 싶으신 분들은 [클릭하세요](https://github.com/smh0505/GoldenKeyMK3/blob/master/Script/Intro.cs).

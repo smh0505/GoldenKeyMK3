@@ -84,7 +84,8 @@ namespace GoldenKeyMK3.Script
                 Client.MessageReceived.Subscribe(msg =>
                 {
                     if (msg.ToString().StartsWith("PING")) Client.Send("PONG :tmi.twitch.tv");
-                    if (_switch && msg.ToString().Contains("!픽")) UpdateRequest(msg.ToString());
+                    if (_switch && _state == PollState.Idle && msg.ToString().Contains("!픽"))
+                        UpdateRequest(msg.ToString());
                 });
                 await Client.Start();
                 Client.Send("CAP REQ :twitch.tv/commands twitch.tv/tags");

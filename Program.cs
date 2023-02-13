@@ -4,9 +4,9 @@ using static Raylib_cs.Raylib;
 
 namespace GoldenKeyMK3
 {
-    public class Program
+    public static class Program
     {
-        public static Font MainFont = LoadFont("Resource/Galmuri.fnt");
+        public static readonly Font MainFont = LoadFont("Resource/Galmuri.fnt");
         private static bool _shutdownRequest;
         private static bool _shutdown;
 
@@ -16,43 +16,27 @@ namespace GoldenKeyMK3
             InitWindow(1920, 1080, "황금열쇠 MK3");
             SetTargetFPS(60);
 
-            if (File.Exists("default.yml")) SaveLoad.LoadSetting();
+            var scenes = new Scenes();
 
             while (!_shutdown)
             {
                 if (WindowShouldClose())
                 {
                     _shutdownRequest = !_shutdownRequest;
-                    if (_shutdownRequest) Close.InitExit();
+                    if (_shutdownRequest) scenes.CloseScene.Reset();
                 }
 
                 BeginDrawing();
                 ClearBackground(Color.LIGHTGRAY);
-                Scenes.DrawScene(_shutdownRequest);
-                if (_shutdownRequest) Close.DrawExit(out _shutdownRequest, out _shutdown);
-                else _shutdownRequest = Scenes.Buttons();
+                scenes.Draw(_shutdownRequest);
+                if (_shutdownRequest) scenes.CloseScene.Draw(out _shutdownRequest, out _shutdown);
+                else _shutdownRequest = scenes.Buttons();
                 EndDrawing();
             }
 
-            DisposeAll();
-            CloseWindow();
-        }
-
-        private static void DisposeAll()
-        {
-            // Disconnect
-            Login.ExitEvent.Set();
-            Chat.ExitEvent.Set();
-
-            // Save log
-            if (Wheel.Options.Any()) SaveLoad.SaveLog();
-
-            // Dispose
+            scenes.Dispose();
             UnloadFont(MainFont);
-            Close.Dispose();
-            Login.Dispose();
-            Scenes.Dispose();
-            Chat.Dispose();
+            CloseWindow();
         }
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Numerics;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
@@ -6,14 +7,17 @@ namespace GoldenKeyMK3.Script
 {
     public class LoadScene
     {
+        private readonly Wheel _wheel;
+        private readonly Texture2D _select;
         private static List<WheelPanel> _options;
 
         private static int _idx;
         private static int _frames;
 
         private static int _idx2;
-        private static int _ypos;
+        private static int _y;
 
+        private const string AlertText = "디폴트 설정을 불러올 수 없습니다!";
         private static readonly string[] Texts =
         {
             "설정 불러오기",
@@ -21,39 +25,46 @@ namespace GoldenKeyMK3.Script
             "디폴트 설정을 불러올 수 없습니다!",
         };
 
-        public static bool DrawLoad(bool shutdownRequest)
+        public LoadScene(Wheel wheel)
+        {
+            _wheel = wheel;
+            _select = LoadTexture("Resource/select.png");
+        }
+        
+        public bool Draw(bool shutdownRequest)
         {
             var files = Directory.GetFiles("Logs");
             var logs = files.Select(o => File.GetCreationTime(o).ToString("g")).ToList();
             if (SaveLoad.DefaultOptions.Any()) logs.Insert(0, "기본 설정");
 
             DrawList(logs);
-            DrawTextEx(Program.MainFont, Texts[0], new Vector2(560, 40), 72, 0, Color.BLACK);
-            DrawTextEx(Program.MainFont, Texts[1] + logs[_idx], new Vector2(560, 132), 48, 0, Color.BLACK);
+            DrawTextEx(Program.MainFont, logs[_idx], new Vector2(757, 135), 48, 0, Color.BLACK);
             if (!SaveLoad.DefaultOptions.Any())
-                DrawTextEx(Program.MainFont, Texts[2],
-                    new Vector2(584 + MeasureTextEx(Program.MainFont, Texts[0], 72, 0).X, 76),
-                    36, 0, Color.RED);
-
+                DrawTextEx(Program.MainFont, AlertText, new Vector2(1053, 76), 36, 0, Color.RED);
+            
             if (_options is not null) DrawLog();
+            
+            return !shutdownRequest && Control(files, logs);
+        }
 
-            if (!shutdownRequest) return Control(files, logs);
-            return false;
+        public void Dispose()
+        {
+            UnloadTexture(_select);
         }
 
         // UIs
 
-        private static void DrawList(List<string> logs)
+        private static void DrawList(IEnumerable<string> logs)
         {
             var count = (int)Math.Floor((GetScreenHeight() - 80) / 48.0f);
-            var pagenum = _idx / count;
-            var page = logs.Skip(pagenum * count).Take(count).ToArray();
+            var pageIdx = _idx / count;
+            var page = logs.Skip(pageIdx * count).Take(count).ToArray();
 
             DrawRectangle(40, 40, 480, GetScreenHeight() - 80, Color.WHITE);
             BeginScissorMode(40, 40, 480, GetScreenHeight() - 80);
-            for (int j = 0; j < page.Length; j++)
+            for (var j = 0; j < page.Length; j++)
             {
-                Color textColor = Color.BLACK;
+                var textColor = Color.BLACK;
                 if (j == _idx % count)
                 {
                     DrawRectangle(40, 40 + 48 * j, 480, 48, Color.DARKGRAY);
@@ -68,13 +79,13 @@ namespace GoldenKeyMK3.Script
 
         private static void DrawLog()
         {
-            var panels = Marquee();
+            var panels = Marquee(_options);
 
             DrawRectangle(560, 200, GetScreenWidth() - 600, GetScreenHeight() - 240, Color.WHITE);
             BeginScissorMode(560, 200, GetScreenWidth() - 600, GetScreenHeight() - 240);
-            for (int i = 0; i < panels.Count; i++)
+            for (var i = 0; i < panels.Count; i++)
             {
-                var pos = new Vector2(560, 200 + _ypos + 48 * i);
+                var pos = new Vector2(560, 200 + _y + 48 * i);
                 DrawRectangle((int)pos.X, (int)pos.Y, GetScreenWidth() - 600, 48, panels[i].Color);
                 DrawTextEx(Program.MainFont, panels[i].Name + $" * {panels[i].Count}",
                     new Vector2(pos.X + 6, pos.Y + 6), 36, 0, Color.BLACK);
@@ -84,7 +95,7 @@ namespace GoldenKeyMK3.Script
 
         // Controls
 
-        private static bool Control(string[] files, List<string> logs)
+        private bool Control(IReadOnlyList<string> files, ICollection logs)
         {
             if (IsKeyDown(KeyboardKey.KEY_UP))
             {
@@ -106,33 +117,30 @@ namespace GoldenKeyMK3.Script
                 else _options = SaveLoad.LoadLog(files[_idx]);
             }
 
-            if (IsKeyPressed(KeyboardKey.KEY_ENTER))
-            {
-                Wheel.Options = _options;
-                return true;
-            }
-            return false;
+            if (!IsKeyPressed(KeyboardKey.KEY_ENTER)) return false;
+            _wheel.Options = _options;
+            return true;
         }
 
-        private static List<WheelPanel> Marquee()
+        private static List<WheelPanel> Marquee(IReadOnlyCollection<WheelPanel> options)
         {
             // Translates position upward
             var count = (int)Math.Ceiling((GetScreenHeight() - 240) / 48.0f);
-            if (_options.Count >= count)
+            if (options.Count >= count)
             {
-                _ypos -= 2;
-                if (_ypos <= -48)
+                _y -= 2;
+                if (_y <= -48)
                 {
-                    _idx2 = (_idx2 + 1) % _options.Count;
-                    _ypos = 0;
+                    _idx2 = (_idx2 + 1) % options.Count;
+                    _y = 0;
                 }
             }
-            else _ypos = _idx2 = 0;
+            else _y = _idx2 = 0;
 
             // Chooses items to show
-            var panels = _options.Skip(_idx2).Take(count + 1).ToList();
-            if (_options.Count >= count && panels.Count < count + 1)
-                panels.AddRange(_options.Take(count + 1 - panels.Count));
+            var panels = options.Skip(_idx2).Take(count + 1).ToList();
+            if (options.Count >= count && panels.Count < count + 1)
+                panels.AddRange(options.Take(count + 1 - panels.Count));
             return panels;
         }
     }

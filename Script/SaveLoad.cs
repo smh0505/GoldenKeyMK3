@@ -1,3 +1,4 @@
+using Raylib_cs;
 using static Raylib_cs.Raylib;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -6,21 +7,27 @@ namespace GoldenKeyMK3.Script
 {
     public struct Setting
     {
-        public string Key;
-        public List<string> Values;
+        public string Key { get; }
+        public List<string> Values { get; }
+
+        public Setting(string key, List<string> values)
+        {
+            Key = key;
+            Values = values;
+        }
     }
 
-    public class SaveLoad
+    public static class SaveLoad
     {
         public static List<WheelPanel> DefaultOptions;
         private static Setting _setting;
 
         // Loading
 
-        public static void LoadSetting()
+        public static void LoadSetting(Login login)
         {
             // Read Default File
-            StreamReader r = new StreamReader("default.yml");
+            var r = new StreamReader("default.yml");
             var data = r.ReadToEnd();
             r.Close();
 
@@ -31,13 +38,13 @@ namespace GoldenKeyMK3.Script
             _setting = deserializer.Deserialize<Setting>(data);
 
             // Insert Setting
-            Login.Input = string.IsNullOrEmpty(_setting.Key) ? string.Empty : _setting.Key;
+            login.Input = string.IsNullOrEmpty(_setting.Key) ? string.Empty : _setting.Key;
             DefaultOptions = _setting.Values == null ? new List<WheelPanel>() : LoadPanels();
         }
 
         public static List<WheelPanel> LoadLog(string filename)
         {
-            StreamReader r = new StreamReader(filename);
+            var r = new StreamReader(filename);
             var data = r.ReadToEnd();
             r.Close();
 
@@ -49,12 +56,12 @@ namespace GoldenKeyMK3.Script
 
         private static List<WheelPanel> LoadPanels()
         {
-            List<WheelPanel> panels = new List<WheelPanel>();
-            Random rnd = new Random();
+            var panels = new List<WheelPanel>();
+            var rnd = new Random();
 
             foreach (var option in _setting.Values)
             {
-                int id = panels.FindIndex(x => x.Name == option);
+                var id = panels.FindIndex(x => x.Name == option);
                 if (id != -1)
                 {
                     var newOption = new WheelPanel(panels[id].Name, panels[id].Count + 1, panels[id].Color);
@@ -63,17 +70,28 @@ namespace GoldenKeyMK3.Script
                 }
                 else
                 {
-                    var newOption = new WheelPanel(option, 1,
-                        ColorFromHSV(rnd.NextSingle() * 360, rnd.NextSingle(), rnd.NextSingle() * 0.5f + 0.5f));
+                    var newOption = new WheelPanel(option, 1, ColorFromHSV(rnd.NextSingle() * 360, 0.5f, 1));
                     panels.Add(newOption);
                 }
             }
             return panels;
         }
 
+        public static Dictionary<string, string[]> LoadTopics(string filename)
+        {
+            var r = new StreamReader(filename);
+            var data = r.ReadToEnd();
+            r.Close();
+
+            var deserializer = new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .Build();
+            return deserializer.Deserialize<Dictionary<string, string[]>>(data);
+        }
+
         // Saving
 
-        public static void SaveLog()
+        public static void SaveLog(Wheel wheel)
         {
             // Create Log File
             Directory.CreateDirectory("Logs");
@@ -84,11 +102,11 @@ namespace GoldenKeyMK3.Script
             var serializer = new SerializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
-            var optionList = serializer.Serialize(Wheel.Options);
+            var optionList = serializer.Serialize(wheel.Options);
 
             // Write Log File
-            using FileStream file = File.Create(filename);
-            StreamWriter w = new StreamWriter(file);
+            using var file = File.Create(filename);
+            var w = new StreamWriter(file);
             w.Write(optionList);
             w.Close();
         }

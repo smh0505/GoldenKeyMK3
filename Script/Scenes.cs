@@ -1,4 +1,3 @@
-using System.Numerics;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
 
@@ -15,116 +14,117 @@ namespace GoldenKeyMK3.Script
 
     public class Scenes
     {
-        private static Scene _currScene;
-        private static readonly Texture2D MinimizeIcon = LoadTexture("Resource/minus.png");
-        private static readonly Texture2D CloseIcon = LoadTexture("Resource/power.png");
-        private static string _switchText = "곡 추첨";
+        private Scene _currScene;
+        private readonly Wheel _wheel;
+        private readonly Login _login;
+        private readonly LoadScene _load;
+        public readonly Close CloseScene;
+        private readonly Chat _chat;
+        private static string _switchText;
 
-        public static void DrawScene(bool shutdownRequest)
+        private readonly Texture2D _minimizeIcon;
+        private readonly Texture2D _closeIcon;
+
+        public Scenes()
+        {
+            // Init itself
+            _currScene = Scene.Intro;
+            _switchText = "곡 추첨";
+
+            _minimizeIcon = LoadTexture("Resource/minus.png");
+            _closeIcon = LoadTexture("Resource/power.png");
+            
+            // Init scenes
+            _wheel = new Wheel();
+            _login = new Login();
+            _load = new LoadScene(_wheel);
+            CloseScene = new Close();
+            _chat = new Chat();
+            
+            if (File.Exists("default.yml")) SaveLoad.LoadSetting(_login);
+        }
+
+        public void Draw(bool shutdownRequest)
         {
             switch (_currScene)
             {
                 case Scene.Intro:
-                    if (Intro.DrawIntro()) _currScene = Scene.Login;
+                    if (Intro.Draw()) _currScene = Scene.Login;
                     break;
                 case Scene.Login:
-                    if (Login.DrawLogin(shutdownRequest)) PostLogin();
+                    if (_login.Draw(shutdownRequest)) PostLogin();
                     break;
                 case Scene.Load:
-                    if (LoadScene.DrawLoad(shutdownRequest)) PrepareGame();
+                    if (_load.Draw(shutdownRequest)) PrepareGame();
                     break;
                 case Scene.Main:
-                    Wheel.UpdateWheel(shutdownRequest);
+                    _wheel.UpdateWheel(shutdownRequest);
                     break;
                 case Scene.Board:
-                    Chat.DrawChat(shutdownRequest);
+                    _chat.Draw(shutdownRequest);
+                    break;
+                default:
                     break;
             }
         }
 
-        public static void Dispose()
+        public void Dispose()
         {
-            UnloadTexture(MinimizeIcon);
-            UnloadTexture(CloseIcon);
+            UnloadTexture(_minimizeIcon);
+            UnloadTexture(_closeIcon);
+            
+            if (_wheel.Options.Any()) SaveLoad.SaveLog(_wheel);
+
+            _login.Dispose();
+            _load.Dispose();
+            CloseScene.Dispose();
+            _chat.Dispose();
         }
 
         // UIs
 
-        public static bool Buttons()
+        public bool Buttons()
         {
             var minimizeButton = new Rectangle(GetScreenWidth() - 124, 12, 50, 50);
             var closeButton = new Rectangle(GetScreenWidth() - 62, 12, 50, 50);
             var switchButton = new Rectangle(GetScreenWidth() - 252, GetScreenHeight() - 72, 240, 60);
-
-            var minimizeColor = Fade(Color.GREEN, 0.7f);
-            var closeColor = Fade(Color.RED, 0.7f);
-            var switchColor = Fade(Color.YELLOW, 0.7f);
-
-            DrawMinimizeButton(minimizeButton, minimizeColor);
-            if ((int)_currScene > 2) DrawSwitchButton(switchButton, switchColor);
-            return DrawCloseButton(closeButton, closeColor);
+            
+            if (DrawMinimizeButton(minimizeButton, Color.GREEN)) MinimizeWindow();
+            if ((int)_currScene > 2 && DrawSwitchButton(switchButton, Color.YELLOW)) OnClick();
+            return DrawCloseButton(closeButton, Color.RED);
         }
 
-        private static void DrawMinimizeButton(Rectangle button, Color buttonColor)
-        {
-            if (CheckCollisionPointRec(GetMousePosition(), button))
-            {
-                if (IsMouseButtonPressed(0)) MinimizeWindow();
-                buttonColor = Color.GREEN;
-            }
-            DrawRectangleRec(button, buttonColor);
-            DrawTexture(MinimizeIcon, (int)button.x, (int)button.y, Color.BLACK);
-        }
+        private bool DrawMinimizeButton(Rectangle button, Color buttonColor)
+            => Ui.DrawButton(button, buttonColor, 0.7f, _minimizeIcon);
+        
+        private bool DrawCloseButton(Rectangle button, Color buttonColor)
+            => Ui.DrawButton(button, buttonColor, 0.7f, _closeIcon);
 
-        private static void DrawSwitchButton(Rectangle button, Color buttonColor)
-        {
-            if (CheckCollisionPointRec(GetMousePosition(), button))
-            {
-                if (IsMouseButtonPressed(0)) OnClick();
-                buttonColor = Color.YELLOW;
-            }
-            DrawRectangleRec(button, buttonColor);
-
-            var switchSize = MeasureTextEx(Program.MainFont, _switchText, 48, 0);
-            var switchPos = new Vector2(button.x + (button.width - switchSize.X) * 0.5f,
-                button.y + (button.height - switchSize.Y) * 0.5f);
-            DrawTextEx(Program.MainFont, _switchText, switchPos, 48, 0, Color.BLACK);
-        }
-
-        private static bool DrawCloseButton(Rectangle button, Color buttonColor)
-        {
-            var shutdownResponse = false;
-            if (CheckCollisionPointRec(GetMousePosition(), button))
-            {
-                if (IsMouseButtonPressed(0)) shutdownResponse = true;
-                buttonColor = Color.RED;
-            }
-            DrawRectangleRec(button, buttonColor);
-            DrawTexture(CloseIcon, (int)button.x, (int)button.y, Color.BLACK);
-            return shutdownResponse;
-        }
+        private static bool DrawSwitchButton(Rectangle button, Color buttonColor)
+            => Ui.DrawButton(button, buttonColor, 0.7f, Program.MainFont,
+                _switchText, 48, Color.BLACK);
 
         // Controls
 
-        private static void PrepareGame()
-        {
-            Login.Connect();
-            Chat.Connect();
-            _currScene = Scene.Main;
-        }
-
-        private static void PostLogin()
+        private void PostLogin()
         {
             if (Directory.Exists("Logs") && Directory.GetFiles("Logs").Any())
                 _currScene = Scene.Load;
             else
             {
-                Wheel.Options = SaveLoad.DefaultOptions;
+                _wheel.Options = SaveLoad.DefaultOptions;
                 PrepareGame();
             }
         }
+        
+        private void PrepareGame()
+        {
+            _login.Connect(_wheel);
+            _chat.Connect();
+            _currScene = Scene.Main;
+        }
 
-        private static void OnClick()
+        private void OnClick()
         {
             switch (_currScene)
             {
@@ -135,6 +135,11 @@ namespace GoldenKeyMK3.Script
                 case Scene.Board:
                     _currScene = Scene.Main;
                     _switchText = "곡 추첨";
+                    break;
+                case Scene.Intro:
+                case Scene.Login:
+                case Scene.Load:
+                default:
                     break;
             }
         }

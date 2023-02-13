@@ -7,50 +7,38 @@ namespace GoldenKeyMK3.Script
     public class Close
     {
         private static int _count;
-        private static readonly Texture2D CancelIcon = LoadTexture("Resource/return.png");
-        private static readonly Texture2D CloseScreen = LoadTexture("Resource/close.png");
-        
-        public static void InitExit() => _count = 0;
+        private readonly Texture2D _cancelIcon;
+        private readonly Texture2D _closeScreen;
 
-        public static void DrawExit(out bool shutdownRequest, out bool shutdownResponse)
+        public Close()
+        {
+            _cancelIcon = LoadTexture("Resource/return.png");
+            _closeScreen = LoadTexture("Resource/close.png");
+        }
+        
+        public void Reset() => _count = 0;
+
+        public void Draw(out bool shutdownRequest, out bool shutdownResponse)
         {
             // UIs
-            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Fade(Color.BLACK, 0.7f));
-            DrawTexts();
-            shutdownRequest = !DrawButton();
+            DrawTexture(_closeScreen, 0, 0, Color.WHITE);
+            DrawTextEx(Program.MainFont, $"종료까지 앞으로 {5 - _count}회", new Vector2(12, 140), 36, 0, Color.WHITE);
+            shutdownRequest = !DrawButton(new Rectangle(12, GetScreenHeight() - 168, 100, 100), Color.GREEN);
 
             // Exit Sequence
             if (IsKeyPressed(KeyboardKey.KEY_SPACE)) _count++;
             shutdownResponse = _count >= 5;
         }
 
-        public static void Dispose()
+        public void Dispose()
         {
-            UnloadTexture(CancelIcon);
-            UnloadTexture(CloseScreen);
+            UnloadTexture(_cancelIcon);
+            UnloadTexture(_closeScreen);
         }
 
         // UIs
 
-        private static void DrawTexts()
-        {
-            DrawTexture(CloseScreen, 0, 0, Color.WHITE);
-            DrawTextEx(Program.MainFont, $"종료까지 앞으로 {5 - _count}회", new Vector2(12, 140), 36, 0, Color.WHITE);
-        }
-
-        private static bool DrawButton()
-        {
-            var isClicked = false;
-            var button = new Rectangle(12, GetScreenHeight() - 168, 100, 100);
-            var buttonColor = Color.DARKGREEN;
-            if (CheckCollisionPointRec(GetMousePosition(), button))
-            {
-                if (IsMouseButtonPressed(0)) isClicked = true;
-                buttonColor = Color.GREEN;
-            }
-            DrawRectangleRec(button, buttonColor);
-            DrawTexture(CancelIcon, (int)button.x - 4, (int)button.y - 4, Color.YELLOW);
-            return isClicked;
-        }
+        private bool DrawButton(Rectangle button, Color buttonColor)
+            => Ui.DrawButton(button, buttonColor, 0.7f, _cancelIcon);
     }
 }

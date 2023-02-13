@@ -4,7 +4,7 @@ using static Raylib_cs.Raylib;
 
 namespace GoldenKeyMK3.Script
 {
-    public class Intro
+    public static class Intro
     {
         // Animation Variables
         private static int _state;
@@ -26,9 +26,9 @@ namespace GoldenKeyMK3.Script
         private const string Text = "Developed by BloppyHB";
         private static readonly float TextLen = MeasureText(Text, 36);
         private static readonly Vector2 TextPos =
-            new Vector2((GetScreenWidth() - TextLen) / 2, (GetScreenHeight() + Logo.height / 5) / 2 - 32);
+            new ((GetScreenWidth() - TextLen) / 2, (GetScreenHeight() + Logo.height / 5) / 2 - 32);
 
-        private static void CalcIntro()
+        private static void Calculate()
         {
             switch (_state)
             {
@@ -81,10 +81,10 @@ namespace GoldenKeyMK3.Script
             }
         }
 
-        public static bool DrawIntro()
+        public static bool Draw()
         {
-            CalcIntro();
-            Vector2 raylibPos = new Vector2(GetScreenWidth() * 0.5f - 128, GetScreenHeight() * 0.5f - 128);
+            Calculate();
+            var raylibPos = new Vector2(GetScreenWidth() * 0.5f - 128, GetScreenHeight() * 0.5f - 128);
 
             switch (_state)
             {

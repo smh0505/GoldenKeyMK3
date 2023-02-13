@@ -8,134 +8,99 @@ namespace GoldenKeyMK3.Script
 {
     public class Login
     {
-        public static ManualResetEvent ExitEvent = new ManualResetEvent(false);
-        public static WebsocketClient Client;
+        private readonly ManualResetEvent _exitEvent = new (false);
+        private WebsocketClient _client;
 
-        public static string Input = string.Empty;
-        public static string Payload = string.Empty;
-        private static bool _isShowed = false;
-        private static bool _isProcessing = false;
-        private static bool _failed = false;
-        private static readonly Texture2D Background = LoadTexture("Resource/Logo_RhythmMarble.png");
+        public string Input;
+        private string _payload;
+        private static bool _isShowed;
+        private static bool _isProcessing;
+        private static bool _failed;
+        
+        private readonly Texture2D _background;
+        private readonly Texture2D _login;
 
-        private static readonly List<string> Texts = new List<string>
+        private const string AlertText = "연결에 실패했습니다. 다시 시도해주세요.";
+
+        public Login()
         {
-            "투네이션 통합 위젯 URL",
-            "https://toon.at/widget/alertbox/",
-            "연결에 실패했습니다. 다시 시도해주세요.",
-            "리듬마블 황금열쇠 Mk.3 / Golden Key Mk.3 for Kim Pyun Jip's Rhythm Marble",
-            "Developed by BloppyHB (https://github.com/smh0505/GoldenKeyMK3)",
-            "Logo Image by 채팅_안치는사람 & cannabee",
-            "Copyright © 2019-2022 Minseo Lee (itoupluk427@gmail.com)"
-        };
-
-        public static bool DrawLogin(bool shutdownRequest)
-        {
-            DrawBackground();
-            DrawTexts();
-            DrawTextBox();
-            DrawButton(shutdownRequest);
-
-            if (!shutdownRequest) return GetInput().Result;
-            else return false;
+            _background = LoadTexture("Resource/Logo_RhythmMarble.png");
+            _login = LoadTexture("Resource/login.png");
+            Input = string.Empty;
+            _payload = string.Empty;
         }
 
-        public static async void Connect()
+        public bool Draw(bool shutdownRequest)
         {
-            using (Client = new WebsocketClient(new Uri("wss://toon.at:8071/" + Payload)))
-            {
-                Client.MessageReceived.Subscribe(msg =>
-                {
-                    if (msg.ToString().Contains("roulette"))
-                    {
-                        Regex re = new Regex(@".message.:.+? - (?<rValue>.+?).");
-                        Wheel.Waitlist = Wheel.Waitlist.Add(re.Match(msg.ToString()).Groups["rValue"].ToString());
+            DrawTexture(_login, 0, 0, Color.WHITE);
+            if (_failed) DrawAlert();
+            DrawTextBox();
+            if (shutdownRequest) return false;
+            if (DrawButton(new Rectangle(12, 12, 160, 80), Color.GREEN))
+                Input = GetClipboardText_();
+            return GetInput().Result;
+        }
 
-                        //var roulette = Regex.Match(msg.ToString(), "\"message\":\"[^\"]* - [^\"]*\"").Value.Substring(10);
-                        //var rValue = roulette.Split('-')[1].Replace("\"", "").Substring(1);
-                        //if (rValue != "꽝") Wheel.Waitlist.Add(rValue);
-                    }
+        public async void Connect(Wheel wheel)
+        {
+            using (_client = new WebsocketClient(new Uri("wss://toon.at:8071/" + _payload)))
+            {
+                _client.MessageReceived.Subscribe(msg =>
+                {
+                    if (!msg.ToString().Contains("roulette")) return;
+                    var re = new Regex(@".message.:.+? - (?<rValue>.+?).");
+                    wheel.WaitList = wheel.WaitList.Add(re.Match(msg.ToString()).Groups["rValue"].ToString());
+
+                    //var roulette = Regex.Match(msg.ToString(), "\"message\":\"[^\"]* - [^\"]*\"").Value.Substring(10);
+                    //var rValue = roulette.Split('-')[1].Replace("\"", "").Substring(1);
+                    //if (rValue != "꽝") Wheel.Waitlist.Add(rValue);
                 });
-                await Client.Start();
-                ExitEvent.WaitOne();
+                await _client.Start();
+                _exitEvent.WaitOne();
             }
         }
 
-        public static void Dispose()
+        public void Dispose()
         {
-            UnloadTexture(Background);
+            _exitEvent.Set();
+            UnloadTexture(_background);
+            UnloadTexture(_login);
         }
 
         // UIs
 
-        private static void DrawBackground()
+        private static void DrawAlert()
         {
-            Vector2 picPos = new Vector2(GetScreenWidth() - Background.width - 20,
-                GetScreenHeight() - Background.height - 20);
-            DrawTextureEx(Background, picPos, 0, 1, Fade(Color.WHITE, 0.7f));
-        }
-
-        private static void DrawTexts()
-        {
-            Vector2 text1Pos = new Vector2((GetScreenWidth() - MeasureTextEx(Program.MainFont, Texts[0], 48, 0).X) / 2,
-                GetScreenHeight() * 0.5f - 128);
-            Vector2 text2Pos = new Vector2((GetScreenWidth() - MeasureTextEx(Program.MainFont, Texts[1], 48, 0).X) / 2,
-                GetScreenHeight() * 0.5f - 80);
-            Vector2 alertPos = new Vector2((GetScreenWidth() - MeasureTextEx(Program.MainFont, Texts[2], 48, 0).X) * 0.5f,
+            var alertPos = new Vector2((GetScreenWidth() - MeasureTextEx(Program.MainFont, AlertText, 48, 0).X) * 0.5f,
                 GetScreenHeight() * 0.5f + 32);
-            Vector2 head = new Vector2(12, GetScreenHeight() - 132);
-
-            DrawTextEx(Program.MainFont, Texts[0], text1Pos, 48, 0, Color.BLACK);
-            DrawTextEx(Program.MainFont, Texts[1], text2Pos, 48, 0, Color.BLACK);
-            if (_failed) DrawTextEx(Program.MainFont, Texts[2], alertPos, 48, 0, Color.RED);
-            DrawTextEx(Program.MainFont, Texts[3], head, 24, 0, Color.GRAY);
-            DrawTextEx(Program.MainFont, Texts[4], head + new Vector2(0, 24), 24, 0, Color.GRAY);
-            DrawTextEx(Program.MainFont, Texts[5], head + new Vector2(0, 48), 24, 0, Color.GRAY);
-            DrawTextEx(Program.MainFont, Texts[6], head + new Vector2(0, 96), 24, 0, Color.GRAY);
+            DrawTextEx(Program.MainFont, AlertText, alertPos, 48, 0, Color.RED);
         }
 
-        private static void DrawTextBox()
+        private void DrawTextBox()
         {
-            Rectangle textBox = new Rectangle(GetScreenWidth() * 0.25f, GetScreenHeight() * 0.5f - 28,
-                GetScreenWidth() * 0.5f, 56);
-            DrawRectangleRec(textBox, Color.WHITE);
-            DrawRectangleLinesEx(textBox, 4, Color.BLACK);
-
-            string inputText = (_isShowed ? Input : "".PadLeft(Input.Length, '*')) + "_";
-            Rectangle inputRect = new Rectangle(textBox.x + 8, textBox.y + 4, textBox.width - 16, 48);
-            float inputPos = MeasureTextEx(Program.MainFont, inputText, 48, 0).X >= textBox.width
-                ? inputRect.x + inputRect.width - MeasureTextEx(Program.MainFont, inputText, 48, 0).X
-                : inputRect.x;
+            var inputText = (_isShowed ? Input : "".PadLeft(Input.Length, '*')) + "_";
+            var inputRect = new Rectangle(GetScreenWidth() * 0.25f + 8, GetScreenHeight() * 0.5f -24, 
+                GetScreenWidth() * 0.5f - 16, 48);
+            var inputLen = MeasureTextEx(Program.MainFont, inputText, 48, 0).X;
+            var inputPos = inputLen >= inputRect.width ? inputRect.x + inputRect.width - inputLen : inputRect.x;
 
             BeginScissorMode((int)inputRect.x, (int)inputRect.y, (int)inputRect.width, (int)inputRect.height);
             DrawTextEx(Program.MainFont, inputText, new Vector2(inputPos, inputRect.y), 48, 0, Color.BLACK);
             EndScissorMode();
         }
 
-        private static void DrawButton(bool shutdownRequest)
-        {
-            Rectangle copyButton = new Rectangle(12, 12, 160, 80);
-            Color copyColor = Fade(Color.GREEN, 0.7f);
-            if (CheckCollisionPointRec(GetMousePosition(), copyButton) && !shutdownRequest)
-            {
-                if (IsMouseButtonPressed(0)) Input = GetClipboardText_();
-                else copyColor = Color.GREEN;
-            }
-            DrawRectangleRec(copyButton, copyColor);
-
-            Vector2 copyPos = new Vector2(92 - MeasureTextEx(Program.MainFont, "붙여넣기", 48, 0).X / 2, 28);
-            DrawTextEx(Program.MainFont, "붙여넣기", copyPos, 48, 0, Color.BLACK);
-        }
-
+        private static bool DrawButton(Rectangle button, Color buttonColor)
+            => Ui.DrawButton(button, buttonColor, 0.7f, Program.MainFont, "붙여넣기", 48, Color.BLACK);
+        
         // Controls
 
-        private static async Task<bool> GetInput()
+        private async Task<bool> GetInput()
         {
             switch((KeyboardKey)GetKeyPressed())
             {
                 case KeyboardKey.KEY_ENTER:
                     if (!_isProcessing) await LoadPayload();
-                    if (!string.IsNullOrEmpty(Payload)) return true;
+                    if (!string.IsNullOrEmpty(_payload)) return true;
                     else
                     {
                         _isProcessing = false;
@@ -156,16 +121,16 @@ namespace GoldenKeyMK3.Script
             return false;
         }
 
-        private static async Task LoadPayload()
+        private async Task LoadPayload()
         {
             _isProcessing = true;
-            HttpClient client = new HttpClient();
+            var client = new HttpClient();
             var response = await client.GetAsync("https://toon.at/widget/alertbox/" + Input);
             if (response.IsSuccessStatusCode)
             {
                 var body = await response.Content.ReadAsStringAsync();
                 var line = Regex.Match(body, "\"payload\":\"[^\"]*\"").Value;
-                Payload = Regex.Match(line, @"[\w]{8,}").Value;
+                _payload = Regex.Match(line, @"[\w]{8,}").Value;
             }
         }
     }

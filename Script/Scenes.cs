@@ -20,6 +20,8 @@ namespace GoldenKeyMK3.Script
         private readonly LoadScene _load;
         public readonly Close CloseScene;
         private readonly Chat _chat;
+        private readonly Board _board;
+        
         private static string _switchText;
 
         private readonly Texture2D _minimizeIcon;
@@ -36,11 +38,12 @@ namespace GoldenKeyMK3.Script
             
             // Init scenes
             _wheel = new Wheel();
-            _login = new Login();
+            _login = new Login(_wheel);
             _load = new LoadScene(_wheel);
             CloseScene = new Close();
-            _chat = new Chat();
-            
+            _board = new Board();
+            _chat = new Chat(_board);
+
             if (File.Exists("default.yml")) SaveLoad.LoadSetting(_login);
         }
 
@@ -58,10 +61,12 @@ namespace GoldenKeyMK3.Script
                     if (_load.Draw(shutdownRequest)) PrepareGame();
                     break;
                 case Scene.Main:
+                    _board.Draw();
                     _wheel.UpdateWheel(shutdownRequest);
                     break;
                 case Scene.Board:
-                    _chat.Draw(shutdownRequest);
+                    _board.Draw();
+                    //_chat.Draw(shutdownRequest);
                     break;
                 default:
                     break;
@@ -79,6 +84,8 @@ namespace GoldenKeyMK3.Script
             _load.Dispose();
             CloseScene.Dispose();
             _chat.Dispose();
+            _wheel.Dispose();
+            _board.Dispose();
         }
 
         // UIs
@@ -119,9 +126,9 @@ namespace GoldenKeyMK3.Script
         
         private void PrepareGame()
         {
-            _login.Connect(_wheel);
-            _chat.Connect();
             _currScene = Scene.Main;
+            _login.Connect();
+            _chat.Connect();
         }
 
         private void OnClick()

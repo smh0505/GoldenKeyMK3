@@ -18,13 +18,7 @@ namespace GoldenKeyMK3.Script
         private static int _y;
 
         private const string AlertText = "디폴트 설정을 불러올 수 없습니다!";
-        private static readonly string[] Texts =
-        {
-            "설정 불러오기",
-            "현재 설정 : ",
-            "디폴트 설정을 불러올 수 없습니다!",
-        };
-
+        
         public LoadScene(Wheel wheel)
         {
             _wheel = wheel;
@@ -37,6 +31,7 @@ namespace GoldenKeyMK3.Script
             var logs = files.Select(o => File.GetCreationTime(o).ToString("g")).ToList();
             if (SaveLoad.DefaultOptions.Any()) logs.Insert(0, "기본 설정");
 
+            DrawTexture(_select, 40, 40, Color.WHITE);
             DrawList(logs);
             DrawTextEx(Program.MainFont, logs[_idx], new Vector2(757, 135), 48, 0, Color.BLACK);
             if (!SaveLoad.DefaultOptions.Any())
@@ -56,12 +51,11 @@ namespace GoldenKeyMK3.Script
 
         private static void DrawList(IEnumerable<string> logs)
         {
-            var count = (int)Math.Floor((GetScreenHeight() - 80) / 48.0f);
+            var count = (int)Math.Floor(1000 / 48.0f);
             var pageIdx = _idx / count;
             var page = logs.Skip(pageIdx * count).Take(count).ToArray();
 
-            DrawRectangle(40, 40, 480, GetScreenHeight() - 80, Color.WHITE);
-            BeginScissorMode(40, 40, 480, GetScreenHeight() - 80);
+            BeginScissorMode(40, 40, 480, 1000);
             for (var j = 0; j < page.Length; j++)
             {
                 var textColor = Color.BLACK;
@@ -81,12 +75,11 @@ namespace GoldenKeyMK3.Script
         {
             var panels = Marquee(_options);
 
-            DrawRectangle(560, 200, GetScreenWidth() - 600, GetScreenHeight() - 240, Color.WHITE);
-            BeginScissorMode(560, 200, GetScreenWidth() - 600, GetScreenHeight() - 240);
+            BeginScissorMode(560, 200, 1320, 840);
             for (var i = 0; i < panels.Count; i++)
             {
                 var pos = new Vector2(560, 200 + _y + 48 * i);
-                DrawRectangle((int)pos.X, (int)pos.Y, GetScreenWidth() - 600, 48, panels[i].Color);
+                DrawRectangle((int)pos.X, (int)pos.Y, 1320, 48, panels[i].Color);
                 DrawTextEx(Program.MainFont, panels[i].Name + $" * {panels[i].Count}",
                     new Vector2(pos.X + 6, pos.Y + 6), 36, 0, Color.BLACK);
             }
@@ -125,7 +118,7 @@ namespace GoldenKeyMK3.Script
         private static List<WheelPanel> Marquee(IReadOnlyCollection<WheelPanel> options)
         {
             // Translates position upward
-            var count = (int)Math.Ceiling((GetScreenHeight() - 240) / 48.0f);
+            var count = (int)Math.Ceiling(840 / 48.0f);
             if (options.Count >= count)
             {
                 _y -= 2;

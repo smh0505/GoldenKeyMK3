@@ -11,6 +11,8 @@ namespace GoldenKeyMK3.Script
         private readonly ManualResetEvent _exitEvent = new (false);
         private WebsocketClient _client;
 
+        private readonly Wheel _wheel;
+
         public string Input;
         private string _payload;
         private static bool _isShowed;
@@ -22,12 +24,33 @@ namespace GoldenKeyMK3.Script
 
         private const string AlertText = "연결에 실패했습니다. 다시 시도해주세요.";
 
-        public Login()
+        public Login(Wheel wheel)
         {
             _background = LoadTexture("Resource/Logo_RhythmMarble.png");
             _login = LoadTexture("Resource/login.png");
             Input = string.Empty;
             _payload = string.Empty;
+
+            _wheel = wheel;
+        }
+        
+        public async void Connect()
+        {
+            using (_client = new WebsocketClient(new Uri("wss://toon.at:8071/" + _payload)))
+            {
+                _client.MessageReceived.Subscribe(msg =>
+                {
+                    if (!msg.ToString().Contains("roulette")) return;
+                    var re = new Regex(@".message.:.+? - (?<rValue>.+?).");
+                    _wheel.WaitList = _wheel.WaitList.Add(re.Match(msg.ToString()).Groups["rValue"].ToString());
+
+                    //var roulette = Regex.Match(msg.ToString(), "\"message\":\"[^\"]* - [^\"]*\"").Value.Substring(10);
+                    //var rValue = roulette.Split('-')[1].Replace("\"", "").Substring(1);
+                    //if (rValue != "꽝") Wheel.Waitlist.Add(rValue);
+                });
+                await _client.Start();
+                _exitEvent.WaitOne();
+            }
         }
 
         public bool Draw(bool shutdownRequest)
@@ -39,25 +62,6 @@ namespace GoldenKeyMK3.Script
             if (DrawButton(new Rectangle(12, 12, 160, 80), Color.GREEN))
                 Input = GetClipboardText_();
             return GetInput().Result;
-        }
-
-        public async void Connect(Wheel wheel)
-        {
-            using (_client = new WebsocketClient(new Uri("wss://toon.at:8071/" + _payload)))
-            {
-                _client.MessageReceived.Subscribe(msg =>
-                {
-                    if (!msg.ToString().Contains("roulette")) return;
-                    var re = new Regex(@".message.:.+? - (?<rValue>.+?).");
-                    wheel.WaitList = wheel.WaitList.Add(re.Match(msg.ToString()).Groups["rValue"].ToString());
-
-                    //var roulette = Regex.Match(msg.ToString(), "\"message\":\"[^\"]* - [^\"]*\"").Value.Substring(10);
-                    //var rValue = roulette.Split('-')[1].Replace("\"", "").Substring(1);
-                    //if (rValue != "꽝") Wheel.Waitlist.Add(rValue);
-                });
-                await _client.Start();
-                _exitEvent.WaitOne();
-            }
         }
 
         public void Dispose()
@@ -114,7 +118,7 @@ namespace GoldenKeyMK3.Script
                     if (Input.Length > 0) Input = Input.Remove(Input.Length - 1);
                     break;
                 default:
-                    var x = Raylib.GetCharPressed();
+                    var x = GetCharPressed();
                     if (x is > 32 and < 127) Input += ((char)x).ToString();
                     break;
             }

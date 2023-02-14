@@ -15,4 +15,8 @@
     <PackageReference Include="YamlDotNet" Version="12.3.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Logs" />
+  </ItemGroup>
+
 </Project>

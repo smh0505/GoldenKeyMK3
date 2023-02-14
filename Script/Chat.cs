@@ -19,9 +19,8 @@ namespace GoldenKeyMK3.Script
         private readonly ManualResetEvent _exitEvent = new (false);
         private WebsocketClient _client;
 
-        private readonly Texture2D _baseBoard;
-        private readonly Texture2D _centerBoard;
-        private readonly Texture2D _resultBoard;
+        private readonly Board _board;
+        private string[] _topics;
 
         private bool _switch;
         private PollState _state;
@@ -29,13 +28,14 @@ namespace GoldenKeyMK3.Script
         private ImmutableList<(string Name, int Block, string Song)> _requests =
             ImmutableList<(string, int, string)>.Empty;
         private ImmutableList<(string Name, string Song)> _usedList = 
-            ImmutableList<(string Name, string Song)>.Empty;
+            ImmutableList<(string, string)>.Empty;
 
-        public Chat()
+        public Chat(Board board)
         {
-            _baseBoard = LoadTexture("Resource/baseboard.png");
-            _centerBoard = LoadTexture("Resource/alert.png");
-            _resultBoard = LoadTexture("Resource/result.png");
+            _board = board;
+            _switch = false;
+            _state = PollState.Idle;
+            _topics = _board.GetTopics();
         }
 
         public async void Connect()
@@ -60,10 +60,6 @@ namespace GoldenKeyMK3.Script
         public void Dispose()
         {
             _exitEvent.Set();
-            
-            UnloadTexture(_baseBoard);
-            UnloadTexture(_centerBoard);
-            UnloadTexture(_resultBoard);
         }
 
         // UIs
@@ -89,32 +85,27 @@ namespace GoldenKeyMK3.Script
                 _requests = _requests.Remove(_requests.First(x => x.Name == name));
         }
 
-        private static bool IsValid(string text)
+        private bool IsValid(string text)
         {
             var content = text.Split(' ', 3);
 
             if (content.Length < 3) return false;
             if (!int.TryParse(content[1], out var idx)) return false;
-            if (idx is < 1 or > 24) return false;
-            if (Board.Contains(idx)) return false;
-
-            return true;
+            if (idx is < 1 or 13 or > 25) return false;
+            return !_board.GetGoldenKeys().Contains(idx - 1);
         }
 
         private static string GetUsername(string tags, string source)
         {
             // display-name
             var name = tags.Split(';')
-                           .Select(x => x.Split('='))
-                           .ToDictionary(x => x[0], x => x[1])["display-name"];
-
+                .Select(x => x.Split('='))
+                .ToDictionary(x => x[0], x => x[1])["display-name"];
+            if (!string.IsNullOrEmpty(name)) return name;
+            
             // username
-            if (string.IsNullOrEmpty(name))
-            {
-                var re = new Regex(@"^(?:(?<nick>[^\s]+?)!(?<user>[^\s]+?)@)?(?<host>[^\s]+)$");
-                name = re.Match(source).Groups["nick"].ToString();
-            }
-
+            var re = new Regex(@"^(?:(?<nick>[^\s]+?)!(?<user>[^\s]+?)@)?(?<host>[^\s]+)$");
+            name = re.Match(source).Groups["nick"].ToString();
             return name;
         }
 
@@ -122,18 +113,38 @@ namespace GoldenKeyMK3.Script
         {
             var content = text.Split(' ', 3);
             var idx = Convert.ToInt32(content[1]);
-            return (idx, content[2]);
+            return idx >= 13 ? (idx + 1, content[2]) : (idx, content[2]);
         }
 
-        private static List<(string, string)> FindAllSongs(int idx)
-            => _requests.FindAll(x => x.Idx == idx).Select(x => (x.Name, x.Song)).ToList();
+        private IEnumerable<(string, string)> FindAllSongs(int idx)
+            => _requests.FindAll(x => x.Block == idx).Select(x => (x.Name, x.Song)).ToList();
+
+        private void Modify()
+        {
+            var temp = _board.GetTopics();
+            var newRequests = new List<(string, int, string)>();
+            for (var i = 0; i < _topics.Length; i++)
+            {
+                if (i is < 0 or 7 or 13 or 20 or > 25) continue;
+                if (_topics[i] == "황금열쇠") continue;
+                
+                var idx = Array.IndexOf(temp, _topics[i]);
+                var group = _requests.FindAll(x => x.Block == i).ToList();
+                _requests = _requests.RemoveAll(x => group.Contains(x));
+                if (idx != -1)
+                    newRequests.AddRange(group.Select(x => (x.Name, idx, x.Song)));
+            }
+
+            _requests = _requests.AddRange(newRequests);
+            _topics = temp;
+        }
 
         // Conditions
 
-        private static bool IsIdle(bool shutdownRequest)
+        private bool IsIdle(bool shutdownRequest)
             => !shutdownRequest && _state == PollState.Idle;
 
-        private static bool IsReadyToSelect(bool shutdownRequest)
-            => !shutdownRequest && _state != PollState.Active && _idx >= 0 && FindAllSongs(_idx + 1).Count > 0;
+        private bool IsReadyToSelect(bool shutdownRequest, int idx)
+            => !shutdownRequest && _state != PollState.Active && FindAllSongs(idx + 1).Any();
     }
 }

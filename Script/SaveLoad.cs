@@ -7,14 +7,8 @@ namespace GoldenKeyMK3.Script
 {
     public struct Setting
     {
-        public string Key { get; }
-        public List<string> Values { get; }
-
-        public Setting(string key, List<string> values)
-        {
-            Key = key;
-            Values = values;
-        }
+        public string Key;
+        public List<string> Values;
     }
 
     public static class SaveLoad

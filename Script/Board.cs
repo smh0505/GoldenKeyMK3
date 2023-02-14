@@ -9,52 +9,53 @@ namespace GoldenKeyMK3.Script
         private static readonly Random Rnd = new ();
         private readonly Texture2D _frame;
         private readonly Texture2D _chroma;
+        private readonly Texture2D _key;
 
         private readonly Dictionary<string, string[]> _topicPool;
 
-        private readonly List<string> _baseTopics;
+        private List<string> _baseTopics = new ();
         private readonly string[] _topics = new string[26];
-        private readonly List<int> _goldenKeys = new() { 1, 4, 8, 10, 13, 16, 20, 22 };
+        private readonly List<int> _goldenKeys = new (){ 2, 5, 9, 11, 15, 18, 22, 24 };
 
         private readonly Rectangle[] _board =
         {
-            new Rectangle(1600, 900, 320, 180), // Start
+            new (1600, 900, 320, 180), // Start
 
             // Line 1
-            new Rectangle(1387, 900, 213, 180),
-            new Rectangle(1173, 900, 213, 180),
-            new Rectangle(960, 900, 213, 180),
-            new Rectangle(747, 900, 213, 180),
-            new Rectangle(533, 900, 213, 180),
-            new Rectangle(320, 900, 213, 180),
+            new (1387, 900, 213, 180),
+            new (1173, 900, 213, 180),
+            new (960, 900, 213, 180),
+            new (747, 900, 213, 180),
+            new (533, 900, 213, 180),
+            new (320, 900, 213, 180),
 
-            new Rectangle(0, 900, 320, 180),    // DJMAX
+            new (0, 900, 320, 180),    // DJMAX
 
             // Line 2
-            new Rectangle(0, 756, 320, 144),
-            new Rectangle(0, 612, 320, 144),
-            new Rectangle(0, 468, 320, 144),
-            new Rectangle(0, 324, 320, 144),
-            new Rectangle(0, 180, 320, 144),
+            new (0, 756, 320, 144),
+            new (0, 612, 320, 144),
+            new (0, 468, 320, 144),
+            new (0, 324, 320, 144),
+            new (0, 180, 320, 144),
 
-            new Rectangle(0, 0, 320, 180),      // Free
+            new (0, 0, 320, 180),      // Free
             
             // Line 3
-            new Rectangle(320, 0, 213, 180),
-            new Rectangle(533, 0, 213, 180),
-            new Rectangle(747, 0, 213, 180),
-            new Rectangle(960, 0, 213, 180),
-            new Rectangle(1173, 0, 213, 180),
-            new Rectangle(1387, 0, 213, 180),
+            new (320, 0, 213, 180),
+            new (533, 0, 213, 180),
+            new (747, 0, 213, 180),
+            new (960, 0, 213, 180),
+            new (1173, 0, 213, 180),
+            new (1387, 0, 213, 180),
 
-            new Rectangle(1600, 0, 320, 180),   // EZ2ON
+            new (1600, 0, 320, 180),   // EZ2ON
 
             // Line 4
-            new Rectangle(1600, 180, 320, 144),
-            new Rectangle(1600, 324, 320, 144),
-            new Rectangle(1600, 468, 320, 144),
-            new Rectangle(1600, 612, 320, 144),
-            new Rectangle(1600, 756, 320, 144),
+            new (1600, 180, 320, 144),
+            new (1600, 324, 320, 144),
+            new (1600, 468, 320, 144),
+            new (1600, 612, 320, 144),
+            new (1600, 756, 320, 144),
         };
 
         private readonly Color[] _boardColor = new Color[26];
@@ -63,31 +64,43 @@ namespace GoldenKeyMK3.Script
         {
             _frame = LoadTexture("Resource/board_frame2.png");
             _chroma = LoadTexture("Resource/board_chroma2.png");
+            _key = LoadTexture("Resource/keys.png");
 
             _topicPool = SaveLoad.LoadTopics("board.yml");
             Generate();
         }
-
-        public void Draw()
-        {
-
-        }
-
+        
         public void Dispose()
         {
             UnloadTexture(_frame);
             UnloadTexture(_chroma);
+            UnloadTexture(_key);
         }
 
         // UIs
 
-        private void DrawBoard()
+        public void Draw()
         {
-            for (int i = 0; i < 26; i++)
+            for (var i = 0; i < 26; i++)
             {
                 if (i is 0 or 7 or 13 or 20) continue;
                 DrawRectangleRec(_board[i], _boardColor[i]);
-
+                if (_goldenKeys.Contains(i))
+                {
+                    var pos = new Vector2(_board[i].x + (_board[i].width - _key.width) * 0.5f,
+                        _board[i].y + (_board[i].height - _key.height) * 0.5f);
+                    DrawTexture(_key, (int)pos.X, (int)pos.Y, Color.WHITE);
+                }
+                else
+                {
+                    var size = MeasureTextEx(Program.MainFont, _topics[i], 36, 0);
+                    var pos = new Vector2(_board[i].x + (_board[i].width - size.X) * 0.5f,
+                        _board[i].y + (_board[i].height - size.Y) * 0.5f);
+                    
+                    BeginScissorMode((int)_board[i].x, (int)_board[i].y, (int)_board[i].width, (int)_board[i].height);
+                    DrawTextEx(Program.MainFont, _topics[i], pos, 24, 0, Color.BLACK);
+                    EndScissorMode();
+                }
             }
             DrawTexture(_frame, 0, 0, Color.WHITE);
         }
@@ -107,13 +120,13 @@ namespace GoldenKeyMK3.Script
                 var topic = string.Empty;
                 if (topicHead != "기타") topic += topicHead;
                 topic += "\n" + topicTail;
-                _baseTopics.Add(topic);
+                if (!_baseTopics.Contains(topic)) _baseTopics.Add(topic);
             }
 
             Finish();
         }
 
-        private void Shuffle()
+        public void Shuffle()
         {
             var count = _goldenKeys.Count;
             _goldenKeys.Clear();
@@ -131,9 +144,9 @@ namespace GoldenKeyMK3.Script
             Finish();
         }
 
-        private void AddKey()
+        public void AddKey()
         {
-            _baseTopics.OrderBy(_ => Rnd.Next());
+            _baseTopics = _baseTopics.OrderBy(_ => Rnd.Next()).ToList();
             _baseTopics.Remove(_baseTopics.Last());
 
             _goldenKeys.Add(-1);
@@ -180,5 +193,8 @@ namespace GoldenKeyMK3.Script
             DrawTexture(_chroma, 0, 0, Color.WHITE);
             TakeScreenshot("board.png");
         }
+
+        public List<int> GetGoldenKeys() => _goldenKeys;
+        public string[] GetTopics() => _topics;
     }
 }

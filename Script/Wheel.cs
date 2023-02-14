@@ -15,9 +15,9 @@ namespace GoldenKeyMK3.Script
 
     public struct WheelPanel
     {
-        public string Name { get; }
-        public int Count { get; }
-        public Color Color { get; }
+        public string Name;
+        public int Count;
+        public Color Color;
 
         public WheelPanel(string name, int count, Color color)
         {
@@ -45,10 +45,14 @@ namespace GoldenKeyMK3.Script
             {WheelState.Result, "다음"}
         };
 
+        private readonly Texture2D _result;
+
         public Wheel(List<WheelPanel> options = null)
         {
             WaitList = ImmutableList<string>.Empty;
-            Options = options;
+            Options = options ?? new List<WheelPanel>();
+
+            _result = LoadTexture("Resource/next_key.png");
         }
 
         public void UpdateWheel(bool shutdownRequest)
@@ -77,8 +81,13 @@ namespace GoldenKeyMK3.Script
             }
 
             if (_state == WheelState.Stopping || Options.Count <= 0 || shutdownRequest) return;
-            if (DrawButton(new Vector2(80, GetScreenHeight() - 80.0f), ButtonPool[_state]))
+            if (DrawButton(new Vector2(400, 820), ButtonPool[_state]))
                 OnClick();
+        }
+
+        public void Dispose()
+        {
+            UnloadTexture(_result);
         }
 
         // UIs
@@ -87,8 +96,8 @@ namespace GoldenKeyMK3.Script
         {
             var currAngle = _startAngle;
             var unitAngle = 360.0f / Sum;
-            var center = new Vector2(GetScreenWidth() * 0.3f, GetScreenHeight() * 0.5f);
-            var radius = GetScreenHeight() * 0.375f;
+            var center = new Vector2(680, 540);
+            const float radius = 250.0f;
 
             // Circular sectors
             foreach (var option in Options)
@@ -101,19 +110,15 @@ namespace GoldenKeyMK3.Script
             currAngle = _startAngle;
             foreach (var option in Options)
             {
-                var origin = new Vector2(radius / 2 + MeasureTextEx(Program.MainFont, option.Name, 24, 0).X / 2, 12);
+                var size = MeasureTextEx(Program.MainFont, option.Name, 24, 0);
+                var origin = new Vector2((radius + size.X) / 2, size.Y / 2);
                 var theta = -90.0f - (currAngle + unitAngle * option.Count / 2);
                 DrawTextPro(Program.MainFont, option.Name, center, origin, theta, 24, 0, Color.BLACK);
                 currAngle += unitAngle * option.Count;
             }
 
             // Triangular arrow
-            Vector2[] vtx =
-            {
-                new (GetScreenWidth() * 0.3f - 20, GetScreenHeight() * 0.125f - 20),
-                new (GetScreenWidth() * 0.3f, GetScreenHeight() * 0.125f + 20),
-                new (GetScreenWidth() * 0.3f + 20, GetScreenHeight() * 0.125f - 20),
-            };
+            Vector2[] vtx = { new (670, 280), new (680, 300), new (690, 280) };
             DrawTriangle(vtx[0], vtx[1], vtx[2], Color.BLACK);
         }
 
@@ -122,19 +127,11 @@ namespace GoldenKeyMK3.Script
                 Program.MainFont, buttonText, 36, Color.BLACK);
 
         private void DrawResult()
-        {
-            DrawRectangle(12, 12, (int)(GetScreenWidth() * 0.6f), GetScreenHeight() - 24, Fade(Color.BLACK, 0.5f));
-
-            const string text = "이번 황금열쇠는";
-            var textPos = new Vector2(GetScreenWidth() * 0.3f - MeasureTextEx(Program.MainFont, text, 48, 0).X / 2,
-                GetScreenHeight() * 0.4f - 48);
-            DrawTextEx(Program.MainFont, text, textPos, 48, 0, Color.WHITE);
-
-            var namePos =
-                new Vector2(GetScreenWidth() * 0.3f - MeasureTextEx(Program.MainFont, Result().Name, 72, 0).X / 2,
-                    GetScreenHeight() * 0.4f);
-            BeginScissorMode(12, (int)(GetScreenHeight() * 0.4f), (int)(GetScreenWidth() * 0.6f), 72);
-            DrawTextEx(Program.MainFont, Result().Name, namePos, 72, 0, Color.WHITE);
+        { 
+            DrawTexture(_result, 330, 190, Color.WHITE);
+            var namePos = new Vector2(354, 374);
+            BeginScissorMode(330, 190, 700, 700);
+            DrawTextEx(Program.MainFont, Result().Name, namePos, 48, 0, Color.WHITE);
             EndScissorMode();
         }
 
@@ -156,8 +153,7 @@ namespace GoldenKeyMK3.Script
                 }
                 else
                 {
-                    var newOption = new WheelPanel(option, 1,
-                        ColorFromHSV(Rnd.NextSingle() * 360.0f, Rnd.NextSingle(), Rnd.NextSingle() * 0.5f + 0.5f));
+                    var newOption = new WheelPanel(option, 1, ColorFromHSV(Rnd.NextSingle() * 360.0f, 0.5f, 1));
                     Options.Add(newOption);
                 }
             }

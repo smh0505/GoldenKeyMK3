@@ -194,7 +194,10 @@ namespace GoldenKeyMK3.Script
             TakeScreenshot("board.png");
         }
 
+        // Communication
+        
         public List<int> GetGoldenKeys() => _goldenKeys;
         public string[] GetTopics() => _topics;
+        public Rectangle[] GetBoard() => _board;
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Net;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using Websocket.Client;
@@ -29,6 +30,8 @@ namespace GoldenKeyMK3.Script
             ImmutableList<(string, int, string)>.Empty;
         private ImmutableList<(string Name, string Song)> _usedList = 
             ImmutableList<(string, string)>.Empty;
+
+        private int _idx = -1;
 
         public Chat(Board board)
         {
@@ -64,7 +67,18 @@ namespace GoldenKeyMK3.Script
 
         // UIs
 
-        
+        public void DrawButtons()
+        {
+            var blocks = _board.GetBoard();
+            foreach (var block in blocks)
+            {
+                var button = new Rectangle(block.x - 2, block.y - 2, block.width - 4, block.height - 4);
+                if (CheckCollisionPointRec(GetMousePosition(), button))
+                {
+                    if (IsMouseButtonPressed(0)) OnClick(Array.IndexOf(blocks, block));
+                }
+            }
+        }
 
         // Main Methods
 
@@ -91,8 +105,8 @@ namespace GoldenKeyMK3.Script
 
             if (content.Length < 3) return false;
             if (!int.TryParse(content[1], out var idx)) return false;
-            if (idx is < 1 or 13 or > 25) return false;
-            return !_board.GetGoldenKeys().Contains(idx - 1);
+            if (idx is < 1 or > 24) return false;
+            return !_board.GetGoldenKeys().Contains(idx);
         }
 
         private static string GetUsername(string tags, string source)
@@ -125,7 +139,7 @@ namespace GoldenKeyMK3.Script
             var newRequests = new List<(string, int, string)>();
             for (var i = 0; i < _topics.Length; i++)
             {
-                if (i is < 0 or 7 or 13 or 20 or > 25) continue;
+                if (i is < 0 or 7 or 20 or > 25) continue;
                 if (_topics[i] == "황금열쇠") continue;
                 
                 var idx = Array.IndexOf(temp, _topics[i]);
@@ -137,6 +151,13 @@ namespace GoldenKeyMK3.Script
 
             _requests = _requests.AddRange(newRequests);
             _topics = temp;
+        }
+
+        private void OnClick(int idx)
+        {
+            _idx = idx;
+            if (idx is 0 or 13) return;
+            
         }
 
         // Conditions

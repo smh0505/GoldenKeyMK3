@@ -83,6 +83,7 @@ namespace GoldenKeyMK3.Script
             if (_state == WheelState.Stopping || Options.Count <= 0 || shutdownRequest) return;
             if (DrawButton(new Vector2(400, 820), ButtonPool[_state]))
                 OnClick();
+            if (IsKeyPressed(KeyboardKey.KEY_SPACE)) OnClick();
         }
 
         public void Dispose()
@@ -131,7 +132,7 @@ namespace GoldenKeyMK3.Script
             DrawTexture(_result, 330, 190, Color.WHITE);
             var namePos = new Vector2(354, 374);
             BeginScissorMode(330, 190, 700, 700);
-            DrawTextEx(Program.MainFont, Result().Name, namePos, 48, 0, Color.WHITE);
+            DrawTextEx(Program.MainFont, Result().Name, namePos, 60, 0, Color.YELLOW);
             EndScissorMode();
         }
 

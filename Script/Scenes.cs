@@ -92,9 +92,11 @@ namespace GoldenKeyMK3.Script
 
         public bool Buttons()
         {
-            var minimizeButton = new Rectangle(GetScreenWidth() - 124, 12, 50, 50);
-            var closeButton = new Rectangle(GetScreenWidth() - 62, 12, 50, 50);
-            var switchButton = new Rectangle(GetScreenWidth() - 252, GetScreenHeight() - 72, 240, 60);
+            var minimizeButton = (int)_currScene > 2 ? new Rectangle(1476, 192, 50, 50)
+                : new Rectangle(1796, 12, 50, 50);
+            var closeButton = (int)_currScene > 2 ? new Rectangle(1538, 192, 50, 50)
+                : new Rectangle(1858, 12, 50, 50);
+            var switchButton = new Rectangle(1348, 828, 240, 60);
             
             if (DrawMinimizeButton(minimizeButton, Color.GREEN)) MinimizeWindow();
             if ((int)_currScene > 2 && DrawSwitchButton(switchButton, Color.YELLOW)) OnClick();

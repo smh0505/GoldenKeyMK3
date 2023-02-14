@@ -98,7 +98,7 @@ namespace GoldenKeyMK3.Script
                         _board[i].y + (_board[i].height - size.Y) * 0.5f);
                     
                     BeginScissorMode((int)_board[i].x, (int)_board[i].y, (int)_board[i].width, (int)_board[i].height);
-                    DrawTextEx(Program.MainFont, _topics[i], pos, 24, 0, Color.BLACK);
+                    DrawTextEx(Program.MainFont, _topics[i], pos, 36, 0, Color.BLACK);
                     EndScissorMode();
                 }
             }
@@ -115,7 +115,7 @@ namespace GoldenKeyMK3.Script
                 var topicHead = _topicPool.Keys.ToArray()[headIdx];
 
                 var tailIdx = Rnd.Next(_topicPool[topicHead].Length);
-                var topicTail = _topicPool[topicHead][tailIdx];
+                var topicTail = _topicPool[topicHead][tailIdx].Replace("_", "\n");
 
                 var topic = string.Empty;
                 if (topicHead != "기타") topic += topicHead;
@@ -131,14 +131,15 @@ namespace GoldenKeyMK3.Script
             var count = _goldenKeys.Count;
             _goldenKeys.Clear();
 
-            var i = 0;
-            while (i < count)
+            _goldenKeys.Add(Rnd.Next(1, 7));
+            _goldenKeys.Add(Rnd.Next(21, 26));
+
+            while (_goldenKeys.Count < count)
             {
                 var newKey = Rnd.Next(26);
                 if (newKey is 0 or 7 or 13 or 20) continue;
                 if (_goldenKeys.Contains(newKey)) continue;
                 _goldenKeys.Add(newKey);
-                i++;
             }
 
             Finish();

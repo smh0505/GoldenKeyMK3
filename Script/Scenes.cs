@@ -66,7 +66,7 @@ namespace GoldenKeyMK3.Script
                     break;
                 case Scene.Board:
                     _board.Draw();
-                    //_chat.Draw(shutdownRequest);
+                    _chat.Draw(shutdownRequest);
                     break;
                 default:
                     break;
@@ -145,9 +145,6 @@ namespace GoldenKeyMK3.Script
                     _currScene = Scene.Main;
                     _switchText = "곡 추첨";
                     break;
-                case Scene.Intro:
-                case Scene.Login:
-                case Scene.Load:
                 default:
                     break;
             }

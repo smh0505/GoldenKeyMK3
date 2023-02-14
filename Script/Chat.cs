@@ -32,6 +32,7 @@ namespace GoldenKeyMK3.Script
             ImmutableList<(string, string)>.Empty;
 
         private int _idx = -1;
+        private bool _menu = false;
 
         public Chat(Board board)
         {
@@ -60,6 +61,12 @@ namespace GoldenKeyMK3.Script
             }
         }
 
+        public void Draw(bool shutdownRequest)
+        {
+            if (!shutdownRequest) DrawButtons();
+            if (!shutdownRequest && _menu) DrawMenu();
+        }
+
         public void Dispose()
         {
             _exitEvent.Set();
@@ -75,9 +82,25 @@ namespace GoldenKeyMK3.Script
                 var button = new Rectangle(block.x - 2, block.y - 2, block.width - 4, block.height - 4);
                 if (CheckCollisionPointRec(GetMousePosition(), button))
                 {
-                    if (IsMouseButtonPressed(0)) OnClick(Array.IndexOf(blocks, block));
+                    var idx = Array.IndexOf(blocks, block);
+                    if (IsMouseButtonPressed(0)) _idx = idx;
+
+                    var text = idx is 0 or 13 || _board.GetGoldenKeys().Contains(idx) ? _topics[idx]
+                        : FindAllSongs(idx).ToArray().Length.ToString();
+                    var textSize = MeasureTextEx(Program.MainFont, text, 48, 0);
+                    var pos = new Vector2(button.x + (button.width - textSize.X) * 0.5f, 
+                        button.y + (button.height - textSize.Y) * 0.5f);
+
+                    DrawRectangleRec(button, Fade(Color.WHITE, 0.7f));
+                    DrawTextEx(Program.MainFont, text, pos, 48, 0, Color.BLACK);
                 }
             }
+        }
+
+        public void DrawMenu()
+        {
+            if (Ui.DrawButton()) _board.AddKey();
+            if (Ui.DrawButton()) _board.Shuffle();
         }
 
         // Main Methods
@@ -139,7 +162,7 @@ namespace GoldenKeyMK3.Script
             var newRequests = new List<(string, int, string)>();
             for (var i = 0; i < _topics.Length; i++)
             {
-                if (i is < 0 or 7 or 20 or > 25) continue;
+                if (i is <= 0 or 7 or 20 or > 25) continue;
                 if (_topics[i] == "황금열쇠") continue;
                 
                 var idx = Array.IndexOf(temp, _topics[i]);
@@ -156,16 +179,7 @@ namespace GoldenKeyMK3.Script
         private void OnClick(int idx)
         {
             _idx = idx;
-            if (idx is 0 or 13) return;
-            
+            if (_idx == 0) _menu = true;
         }
-
-        // Conditions
-
-        private bool IsIdle(bool shutdownRequest)
-            => !shutdownRequest && _state == PollState.Idle;
-
-        private bool IsReadyToSelect(bool shutdownRequest, int idx)
-            => !shutdownRequest && _state != PollState.Active && FindAllSongs(idx + 1).Any();
     }
 }

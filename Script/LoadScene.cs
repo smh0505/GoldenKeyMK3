@@ -29,13 +29,12 @@ namespace GoldenKeyMK3.Script
         {
             var files = Directory.GetFiles("Logs");
             var logs = files.Select(o => File.GetCreationTime(o).ToString("g")).ToList();
-            if (SaveLoad.DefaultOptions.Any()) logs.Insert(0, "기본 설정");
+            if (!IsEmpty()) logs.Insert(0, "기본 설정");
 
             DrawTexture(_select, 40, 40, Color.WHITE);
             DrawList(logs);
             DrawTextEx(Ui.Galmuri48, logs[_idx], new Vector2(757, 135), 48, 0, Color.BLACK);
-            if (!SaveLoad.DefaultOptions.Any())
-                DrawTextEx(Ui.Galmuri36, AlertText, new Vector2(1053, 76), 36, 0, Color.RED);
+            if (IsEmpty()) DrawTextEx(Ui.Galmuri36, AlertText, new Vector2(1053, 76), 36, 0, Color.RED);
             
             if (_options is not null) DrawLog();
             
@@ -105,7 +104,7 @@ namespace GoldenKeyMK3.Script
             if (IsKeyUp(KeyboardKey.KEY_UP) && IsKeyUp(KeyboardKey.KEY_DOWN))
             {
                 _frames = 0;
-                if (SaveLoad.DefaultOptions.Any())
+                if (!IsEmpty())
                     _options = _idx == 0 ? SaveLoad.DefaultOptions : SaveLoad.LoadLog(files[_idx - 1]);
                 else _options = SaveLoad.LoadLog(files[_idx]);
             }
@@ -136,5 +135,8 @@ namespace GoldenKeyMK3.Script
                 panels.AddRange(options.Take(count + 1 - panels.Count));
             return panels;
         }
+
+        private bool IsEmpty()
+            => SaveLoad.DefaultOptions is null || !SaveLoad.DefaultOptions.Any();
     }
 }

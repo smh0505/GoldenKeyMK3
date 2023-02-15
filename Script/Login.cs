@@ -41,12 +41,9 @@ namespace GoldenKeyMK3.Script
                 _client.MessageReceived.Subscribe(msg =>
                 {
                     if (!msg.ToString().Contains("roulette")) return;
-                    var re = new Regex(@".message.:.+? - (?<rValue>.+?).");
-                    _wheel.WaitList = _wheel.WaitList.Add(re.Match(msg.ToString()).Groups["rValue"].ToString());
-
-                    //var roulette = Regex.Match(msg.ToString(), "\"message\":\"[^\"]* - [^\"]*\"").Value.Substring(10);
-                    //var rValue = roulette.Split('-')[1].Replace("\"", "").Substring(1);
-                    //if (rValue != "꽝") Wheel.Waitlist.Add(rValue);
+                    var roulette = Regex.Match(msg.ToString(), "\"message\":\"[^\"]* - [^\"]*\"").Value.Substring(10);
+                    var rValue = roulette.Split('-')[1].Replace("\"", "").Substring(1);
+                    if (rValue != "꽝") _wheel.WaitList = _wheel.WaitList.Add(rValue);
                 });
                 await _client.Start();
                 _exitEvent.WaitOne();
@@ -105,11 +102,8 @@ namespace GoldenKeyMK3.Script
                 case KeyboardKey.KEY_ENTER:
                     if (!_isProcessing) await LoadPayload();
                     if (!string.IsNullOrEmpty(_payload)) return true;
-                    else
-                    {
-                        _isProcessing = false;
-                        _failed = true;
-                    }
+                    _isProcessing = false;
+                    _failed = true;
                     break;
                 case KeyboardKey.KEY_TAB:
                     _isShowed = !_isShowed;

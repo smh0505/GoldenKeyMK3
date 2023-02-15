@@ -12,7 +12,7 @@ namespace GoldenKeyMK3.Script
 
     public static class SaveLoad
     {
-        public static List<WheelPanel> DefaultOptions;
+        public static List<WheelPanel> DefaultOptions = new ();
         private static Setting _setting;
 
         // Loading

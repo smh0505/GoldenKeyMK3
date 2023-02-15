@@ -57,7 +57,7 @@ namespace GoldenKeyMK3.Script
 
         public void UpdateWheel(bool shutdownRequest)
         {
-            DrawWheel();
+            if (Sum > 0) DrawWheel();
             
             switch (_state)
             {
@@ -80,7 +80,7 @@ namespace GoldenKeyMK3.Script
                     break;
             }
 
-            if (_state == WheelState.Stopping || Options.Count <= 0 || shutdownRequest) return;
+            if (_state == WheelState.Stopping || Options.Any() || shutdownRequest) return;
             if (DrawButton(new Vector2(400, 820), ButtonPool[_state]))
                 OnClick();
             if (IsKeyPressed(KeyboardKey.KEY_SPACE)) OnClick();

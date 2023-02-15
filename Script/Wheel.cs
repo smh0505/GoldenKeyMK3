@@ -111,10 +111,10 @@ namespace GoldenKeyMK3.Script
             currAngle = _startAngle;
             foreach (var option in Options)
             {
-                var size = MeasureTextEx(Program.MainFont, option.Name, 24, 0);
+                var size = MeasureTextEx(Ui.Galmuri24, option.Name, 24, 0);
                 var origin = new Vector2((radius + size.X) / 2, size.Y / 2);
                 var theta = -90.0f - (currAngle + unitAngle * option.Count / 2);
-                DrawTextPro(Program.MainFont, option.Name, center, origin, theta, 24, 0, Color.BLACK);
+                DrawTextPro(Ui.Galmuri24, option.Name, center, origin, theta, 24, 0, Color.BLACK);
                 currAngle += unitAngle * option.Count;
             }
 
@@ -125,14 +125,14 @@ namespace GoldenKeyMK3.Script
 
         private static bool DrawButton(Vector2 center, string buttonText)
             => Ui.DrawButton(center, 60.0f, Color.GREEN, 0.7f,
-                Program.MainFont, buttonText, 36, Color.BLACK);
+                Ui.Galmuri36, buttonText, 36, Color.BLACK);
 
         private void DrawResult()
         { 
             DrawTexture(_result, 330, 190, Color.WHITE);
             var namePos = new Vector2(354, 374);
             BeginScissorMode(330, 190, 700, 700);
-            DrawTextEx(Program.MainFont, Result().Name, namePos, 60, 0, Color.YELLOW);
+            DrawTextEx(Ui.Galmuri60, Result().Name, namePos, 60, 0, Color.YELLOW);
             EndScissorMode();
         }
 

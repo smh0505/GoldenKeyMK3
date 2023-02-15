@@ -14,7 +14,7 @@ namespace GoldenKeyMK3.Script
         private static float _alpha = 1.0f;
 
         // Raylib-cs logo color
-        private static readonly Color LogoColor = new Color(139, 71, 135, 255);
+        private static readonly Color LogoColor = new (139, 71, 135, 255);
 
         // Developer logo
         private static readonly Texture2D Logo = LoadTexture("Resource/BloppyHB.png");
@@ -118,5 +118,7 @@ namespace GoldenKeyMK3.Script
             }
             return false;
         }
+
+        public static void Dispose() => UnloadTexture(Logo);
     }
 }

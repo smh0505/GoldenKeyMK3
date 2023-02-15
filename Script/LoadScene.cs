@@ -33,9 +33,9 @@ namespace GoldenKeyMK3.Script
 
             DrawTexture(_select, 40, 40, Color.WHITE);
             DrawList(logs);
-            DrawTextEx(Program.MainFont, logs[_idx], new Vector2(757, 135), 48, 0, Color.BLACK);
+            DrawTextEx(Ui.Galmuri48, logs[_idx], new Vector2(757, 135), 48, 0, Color.BLACK);
             if (!SaveLoad.DefaultOptions.Any())
-                DrawTextEx(Program.MainFont, AlertText, new Vector2(1053, 76), 36, 0, Color.RED);
+                DrawTextEx(Ui.Galmuri36, AlertText, new Vector2(1053, 76), 36, 0, Color.RED);
             
             if (_options is not null) DrawLog();
             
@@ -66,7 +66,7 @@ namespace GoldenKeyMK3.Script
                 }
 
                 Vector2 pos = new(46, 46 + 48 * j);
-                DrawTextEx(Program.MainFont, page[j], pos, 36, 0, textColor);
+                DrawTextEx(Ui.Galmuri36, page[j], pos, 36, 0, textColor);
             }
             EndScissorMode();
         }
@@ -80,7 +80,7 @@ namespace GoldenKeyMK3.Script
             {
                 var pos = new Vector2(560, 200 + _y + 48 * i);
                 DrawRectangle((int)pos.X, (int)pos.Y, 1320, 48, panels[i].Color);
-                DrawTextEx(Program.MainFont, panels[i].Name + $" * {panels[i].Count}",
+                DrawTextEx(Ui.Galmuri36, $"{panels[i].Name} * {panels[i].Count}",
                     new Vector2(pos.X + 6, pos.Y + 6), 36, 0, Color.BLACK);
             }
             EndScissorMode();

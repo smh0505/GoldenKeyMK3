@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Net;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using Websocket.Client;
@@ -23,23 +22,46 @@ namespace GoldenKeyMK3.Script
         private readonly Board _board;
         private string[] _topics;
 
-        private bool _switch;
-        private PollState _state;
-        
-        private ImmutableList<(string Name, int Block, string Song)> _requests =
-            ImmutableList<(string, int, string)>.Empty;
+        private ImmutableList<(string Name, string Topic, string Song)> _requests = 
+            ImmutableList<(string, string, string)>.Empty;
         private ImmutableList<(string Name, string Song)> _usedList = 
             ImmutableList<(string, string)>.Empty;
 
         private int _idx = -1;
-        private bool _menu = false;
+        private bool _menu;
+        private PollState _state;
+        private readonly int[] _y;
+        private readonly int[] _head;
+        private (string Name, string Song) _current;
+        private List<(string Name, string Song)> _temp;
+        private int _countUp;
+
+        private readonly Texture2D _menuPopup;
+        private readonly Texture2D _addKey;
+        private readonly Texture2D _shuffle;
+        private readonly Texture2D _background;
+        private readonly Texture2D _alert;
+        private readonly Texture2D _result;
 
         public Chat(Board board)
         {
             _board = board;
-            _switch = false;
             _state = PollState.Idle;
             _topics = _board.GetTopics();
+            
+            _menu = false;
+            _y = new []{ 0, 0 };
+            _head = new []{ 0, 0 };
+            _current = (string.Empty, string.Empty);
+            _temp = new List<(string, string)>();
+            _countUp = 0;
+
+            _menuPopup = LoadTexture("Resource/menu.png");
+            _addKey = LoadTexture("Resource/add_key.png");
+            _shuffle = LoadTexture("Resource/shuffle.png");
+            _background = LoadTexture("Resource/list_background.png");
+            _alert = LoadTexture("Resource/alert.png");
+            _result = LoadTexture("Resource/result.png");
         }
 
         public async void Connect()
@@ -50,8 +72,7 @@ namespace GoldenKeyMK3.Script
                 _client.MessageReceived.Subscribe(msg =>
                 {
                     if (msg.ToString().StartsWith("PING")) _client.Send("PONG :tmi.twitch.tv");
-                    if (_switch && _state == PollState.Idle && msg.ToString().Contains("!픽"))
-                        UpdateRequest(msg.ToString());
+                    if (msg.ToString().Contains("!픽")) UpdateRequest(msg.ToString());
                 });
                 await _client.Start();
                 _client.Send("CAP REQ :twitch.tv/commands twitch.tv/tags");
@@ -63,44 +84,144 @@ namespace GoldenKeyMK3.Script
 
         public void Draw(bool shutdownRequest)
         {
-            if (!shutdownRequest) DrawButtons();
+            DrawLists();
+
+            if (_state == PollState.Active)
+            {
+                _countUp++;
+                _current = _temp[new Random().Next(_temp.Count)];
+                if (_countUp == 150) _state = PollState.Result;
+            }
+            
+            if (!shutdownRequest && _state != PollState.Active && FindAllSongs(_idx).ToList().Count > 0) DrawPollButton();
+            if (!shutdownRequest && _state != PollState.Active) DrawButtons();
             if (!shutdownRequest && _menu) DrawMenu();
+            if (_state != PollState.Idle) DrawResult(_current);
         }
 
         public void Dispose()
         {
             _exitEvent.Set();
+            UnloadTexture(_menuPopup);
+            UnloadTexture(_shuffle);
+            UnloadTexture(_addKey);
+            UnloadTexture(_background);
+            UnloadTexture(_alert);
+            UnloadTexture(_result);
         }
 
         // UIs
 
-        public void DrawButtons()
+        private void DrawLists()
+        {
+            DrawTexture(_background, 320, 180, Color.WHITE);
+            
+            // Current Lists
+            if (!FindAllSongs(_idx).Any()) DrawTexture(_alert, 332, 192, Color.WHITE);
+            else
+            {
+                var text = _topics[_idx].Replace("\n", " ");
+                DrawRectangle(332, 192, 622, 62, _board.GetBoardColors()[_idx]);
+                DrawTextEx(Ui.Galmuri48, text, new Vector2(344, 199), 48, 0, Color.BLACK);
+
+                var group = Marquee(406, 30, FindAllSongs(_idx).ToList(), ref _y[0], ref _head[0]).ToArray();
+                BeginScissorMode(332, 254, 622, 406);
+                for (var i = 0; i < group.Length; i++)
+                {
+                    var pos = new Vector2(344, 260 + _y[0] + 30 * i);
+                    DrawTextEx(Ui.Galmuri24, group[i].Song, pos, 24, 0, Color.BLACK);
+                }
+                EndScissorMode();
+            }
+            
+            // Used List
+            var usedList = Marquee(406, 30, _usedList, ref _y[1], ref _head[1]).ToArray();
+            BeginScissorMode(966, 254, 622, 406);
+            for (var i = 0; i < usedList.Length; i++)
+            {
+                var pos = new Vector2(978, 260 + _y[1] + 30 * i);
+                DrawTextEx(Ui.Galmuri24, $"{usedList[i].Name} => {usedList[i].Song}", pos, 24, 0, Color.WHITE);
+            }
+            EndScissorMode();
+        }
+
+        private void DrawResult((string Name, string Song) request)
+        {
+            DrawTexture(_result, 332, 254, Color.WHITE);
+            BeginScissorMode(332, 254, 622, 406);
+            DrawTextEx(Ui.Galmuri48, request.Song, new Vector2(352, 314), 48, 0, Color.YELLOW);
+            DrawTextEx(Ui.Galmuri24, request.Name, new Vector2(402, 380), 24, 0, Color.WHITE);
+            EndScissorMode();
+        }
+        
+        private void DrawButtons()
         {
             var blocks = _board.GetBoard();
             foreach (var block in blocks)
             {
-                var button = new Rectangle(block.x - 2, block.y - 2, block.width - 4, block.height - 4);
-                if (CheckCollisionPointRec(GetMousePosition(), button))
-                {
-                    var idx = Array.IndexOf(blocks, block);
-                    if (IsMouseButtonPressed(0)) _idx = idx;
+                var button = new Rectangle(block.x + 2, block.y + 2, block.width - 4, block.height - 4);
+                if (!CheckCollisionPointRec(GetMousePosition(), button)) continue;
+                
+                var idx = Array.IndexOf(blocks, block);
+                if (IsMouseButtonPressed(0)) OnClick(idx);
 
-                    var text = idx is 0 or 13 || _board.GetGoldenKeys().Contains(idx) ? _topics[idx]
-                        : FindAllSongs(idx).ToArray().Length.ToString();
-                    var textSize = MeasureTextEx(Program.MainFont, text, 48, 0);
-                    var pos = new Vector2(button.x + (button.width - textSize.X) * 0.5f, 
-                        button.y + (button.height - textSize.Y) * 0.5f);
+                var text = idx is 0 or 13 || _board.GetGoldenKeys().Contains(idx) ? _topics[idx]
+                    : FindAllSongs(idx).ToArray().Length.ToString();
+                var textSize = MeasureTextEx(Ui.Galmuri48, text, 48, 0);
+                var pos = new Vector2(button.x + (button.width - textSize.X) * 0.5f, 
+                    button.y + (button.height - textSize.Y) * 0.5f);
 
-                    DrawRectangleRec(button, Fade(Color.WHITE, 0.7f));
-                    DrawTextEx(Program.MainFont, text, pos, 48, 0, Color.BLACK);
-                }
+                DrawRectangleRec(button, Fade(Color.WHITE, 0.7f));
+                DrawTextEx(Ui.Galmuri48, text, pos, 48, 0, Color.BLACK);
             }
         }
 
-        public void DrawMenu()
+        private void DrawMenu()
         {
-            if (Ui.DrawButton()) _board.AddKey();
-            if (Ui.DrawButton()) _board.Shuffle();
+            DrawTexture(_menuPopup, 640, 300, Color.WHITE);
+            
+            if (Ui.DrawButton(new Rectangle(680, 420, 240, 240), Color.LIME, 0.8f, _addKey))
+            {
+                var target = _board.AddKey();
+                _topics = _board.GetTopics();
+                _requests = _requests.RemoveAll(x => x.Topic == target);
+                _idx = -1;
+            }
+
+            if (Ui.DrawButton(new Rectangle(1000, 420, 240, 240), Color.LIME, 0.8f, _shuffle))
+            {
+                _board.Shuffle();
+                _topics = _board.GetTopics();
+                _idx = -1;
+            }
+
+            if (Ui.DrawButton(new Rectangle(680, 330, 560, 60), Color.LIME, 0.8f,
+                    Ui.Galmuri48, "맵 추출하기", 48, Color.WHITE))
+            {
+                var screenshot = LoadImageFromScreen();
+                var chroma = LoadImage("Resource/board_chroma2.png");
+                ImageDraw(ref screenshot, chroma, new Rectangle(0, 0, 1920, 1080), 
+                    new Rectangle(0, 0, 1920, 1080), Color.WHITE);
+                ExportImage(screenshot, "board.png");
+                UnloadImage(screenshot);
+                UnloadImage(chroma);
+            }
+        }
+
+        private void DrawPollButton()
+        {
+            var texts = new []{ "추첨", string.Empty, "다음" };
+            
+            if (!Ui.DrawButton(new Rectangle(332, 840, 160, 48), Color.GREEN, 0.7f,
+                    Ui.Galmuri36, texts[(int)_state], 36, Color.BLACK)) return;
+            if (_state == PollState.Idle) _temp = FindAllSongs(_idx).ToList();
+            _state = (PollState)(((int)_state + 1) % 3);
+            
+            if (_state != PollState.Idle) return;
+            _usedList = _usedList.Add(_current);
+            _requests = _requests.RemoveAll(x => x.Name == _current.Name);
+            _current = (string.Empty, string.Empty);
+            _countUp = 0;
         }
 
         // Main Methods
@@ -116,8 +237,9 @@ namespace GoldenKeyMK3.Script
             if (_usedList.Select(x => x.Name).Contains(name)) return;
             
             var order = GetOrder(objects["content"].ToString());
-            
-            _requests = _requests.Add((name, order.Item1, order.Item2));
+
+            var idx = _topics[order.Item1];
+            _requests = _requests.Add((name, idx, order.Item2));
             if (_requests.Count(x => x.Name == name) > 3)
                 _requests = _requests.Remove(_requests.First(x => x.Name == name));
         }
@@ -153,33 +275,36 @@ namespace GoldenKeyMK3.Script
             return idx >= 13 ? (idx + 1, content[2]) : (idx, content[2]);
         }
 
-        private IEnumerable<(string, string)> FindAllSongs(int idx)
-            => _requests.FindAll(x => x.Block == idx).Select(x => (x.Name, x.Song)).ToList();
-
-        private void Modify()
-        {
-            var temp = _board.GetTopics();
-            var newRequests = new List<(string, int, string)>();
-            for (var i = 0; i < _topics.Length; i++)
-            {
-                if (i is <= 0 or 7 or 20 or > 25) continue;
-                if (_topics[i] == "황금열쇠") continue;
-                
-                var idx = Array.IndexOf(temp, _topics[i]);
-                var group = _requests.FindAll(x => x.Block == i).ToList();
-                _requests = _requests.RemoveAll(x => group.Contains(x));
-                if (idx != -1)
-                    newRequests.AddRange(group.Select(x => (x.Name, idx, x.Song)));
-            }
-
-            _requests = _requests.AddRange(newRequests);
-            _topics = temp;
-        }
+        private IEnumerable<(string Name, string Song)> FindAllSongs(int idx)
+            => idx < 0 ? ImmutableList<(string, string)>.Empty 
+                : _requests.FindAll(x => x.Topic == _topics[idx]).Select(x => (x.Name, x.Song));
 
         private void OnClick(int idx)
         {
-            _idx = idx;
-            if (_idx == 0) _menu = true;
+            if (idx == 0) _menu = !_menu;
+            else if (!_menu) _idx = idx;
+        }
+
+        private static IReadOnlyCollection<T> Marquee<T>(float height, float unitHeight, IReadOnlyCollection<T> group,
+            ref int y, ref int head)
+        {
+            var count = (int)Math.Ceiling(height / unitHeight);
+
+            if (group.Count >= count)
+            {
+                y -= 2;
+                if (y <= -30)
+                {
+                    head = (head + 1) % group.Count;
+                    y = 0;
+                }
+            }
+            else y = head = 0;
+
+            var output = group.Skip(head).Take(count + 1).ToList();
+            if (group.Count >= count && output.Count < count + 1)
+                output.AddRange(group.Take(count + 1 - output.Count));
+            return output.ToArray();
         }
     }
 }

@@ -6,6 +6,12 @@ namespace GoldenKeyMK3.Script
 {
     public static class Ui
     {
+        public static readonly Font Galmuri24 = LoadFont("Resource/Galmuri24.fnt");
+        public static readonly Font Galmuri36 = LoadFont("Resource/Galmuri36.fnt");
+        public static readonly Font Galmuri48 = LoadFont("Resource/Galmuri48.fnt");
+        public static readonly Font Galmuri60 = LoadFont("Resource/Galmuri60.fnt");
+        public static readonly Font Cafe36 = LoadFont("Resource/Cafe36.fnt");
+
         public static bool DrawButton(Rectangle button, Color buttonColor, float hoverFade, Texture2D buttonImage)
         {
             var isClicked = false;
@@ -58,6 +64,15 @@ namespace GoldenKeyMK3.Script
             DrawCircleV(center, radius, hoverColor);
             DrawTextEx(font, buttonText, textPos, fontSize, 0, fontColor);
             return isClicked;
+        }
+
+        public static void Dispose()
+        {
+            UnloadFont(Galmuri24);
+            UnloadFont(Galmuri36);
+            UnloadFont(Galmuri48);
+            UnloadFont(Galmuri60);
+            UnloadFont(Cafe36);
         }
     }
 }

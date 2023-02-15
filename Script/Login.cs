@@ -75,9 +75,9 @@ namespace GoldenKeyMK3.Script
 
         private static void DrawAlert()
         {
-            var alertPos = new Vector2((GetScreenWidth() - MeasureTextEx(Program.MainFont, AlertText, 48, 0).X) * 0.5f,
+            var alertPos = new Vector2((GetScreenWidth() - MeasureTextEx(Ui.Galmuri48, AlertText, 48, 0).X) * 0.5f,
                 GetScreenHeight() * 0.5f + 32);
-            DrawTextEx(Program.MainFont, AlertText, alertPos, 48, 0, Color.RED);
+            DrawTextEx(Ui.Galmuri48, AlertText, alertPos, 48, 0, Color.RED);
         }
 
         private void DrawTextBox()
@@ -85,16 +85,16 @@ namespace GoldenKeyMK3.Script
             var inputText = (_isShowed ? Input : "".PadLeft(Input.Length, '*')) + "_";
             var inputRect = new Rectangle(GetScreenWidth() * 0.25f + 8, GetScreenHeight() * 0.5f -24, 
                 GetScreenWidth() * 0.5f - 16, 48);
-            var inputLen = MeasureTextEx(Program.MainFont, inputText, 48, 0).X;
+            var inputLen = MeasureTextEx(Ui.Galmuri48, inputText, 48, 0).X;
             var inputPos = inputLen >= inputRect.width ? inputRect.x + inputRect.width - inputLen : inputRect.x;
 
             BeginScissorMode((int)inputRect.x, (int)inputRect.y, (int)inputRect.width, (int)inputRect.height);
-            DrawTextEx(Program.MainFont, inputText, new Vector2(inputPos, inputRect.y), 48, 0, Color.BLACK);
+            DrawTextEx(Ui.Galmuri48, inputText, new Vector2(inputPos, inputRect.y), 48, 0, Color.BLACK);
             EndScissorMode();
         }
 
         private static bool DrawButton(Rectangle button, Color buttonColor)
-            => Ui.DrawButton(button, buttonColor, 0.7f, Program.MainFont, "붙여넣기", 48, Color.BLACK);
+            => Ui.DrawButton(button, buttonColor, 0.7f, Ui.Galmuri48, "붙여넣기", 48, Color.BLACK);
         
         // Controls
 

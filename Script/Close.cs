@@ -22,7 +22,7 @@ namespace GoldenKeyMK3.Script
         {
             // UIs
             DrawTexture(_closeScreen, 0, 0, Color.WHITE);
-            DrawTextEx(Program.MainFont, $"종료까지 앞으로 {5 - _count}회", new Vector2(12, 140), 36, 0, Color.WHITE);
+            DrawTextEx(Ui.Galmuri36, $"종료까지 앞으로 {5 - _count}회", new Vector2(12, 140), 36, 0, Color.WHITE);
             shutdownRequest = !DrawButton(new Rectangle(12, GetScreenHeight() - 168, 100, 100), Color.GREEN);
 
             // Exit Sequence

@@ -86,6 +86,8 @@ namespace GoldenKeyMK3.Script
             _chat.Dispose();
             _wheel.Dispose();
             _board.Dispose();
+            Intro.Dispose();
+            Ui.Dispose();
         }
 
         // UIs
@@ -110,7 +112,7 @@ namespace GoldenKeyMK3.Script
             => Ui.DrawButton(button, buttonColor, 0.7f, _closeIcon);
 
         private static bool DrawSwitchButton(Rectangle button, Color buttonColor)
-            => Ui.DrawButton(button, buttonColor, 0.7f, Program.MainFont,
+            => Ui.DrawButton(button, buttonColor, 0.7f, Ui.Galmuri48,
                 _switchText, 48, Color.BLACK);
 
         // Controls

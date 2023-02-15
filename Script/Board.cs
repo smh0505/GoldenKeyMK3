@@ -8,7 +8,6 @@ namespace GoldenKeyMK3.Script
     {
         private static readonly Random Rnd = new ();
         private readonly Texture2D _frame;
-        private readonly Texture2D _chroma;
         private readonly Texture2D _key;
 
         private readonly Dictionary<string, string[]> _topicPool;
@@ -63,7 +62,6 @@ namespace GoldenKeyMK3.Script
         public Board()
         {
             _frame = LoadTexture("Resource/board_frame2.png");
-            _chroma = LoadTexture("Resource/board_chroma2.png");
             _key = LoadTexture("Resource/keys.png");
 
             _topicPool = SaveLoad.LoadTopics("board.yml");
@@ -73,7 +71,6 @@ namespace GoldenKeyMK3.Script
         public void Dispose()
         {
             UnloadTexture(_frame);
-            UnloadTexture(_chroma);
             UnloadTexture(_key);
         }
 
@@ -93,12 +90,12 @@ namespace GoldenKeyMK3.Script
                 }
                 else
                 {
-                    var size = MeasureTextEx(Program.MainFont, _topics[i], 36, 0);
+                    var size = MeasureTextEx(Ui.Cafe36, _topics[i], 36, 0);
                     var pos = new Vector2(_board[i].x + (_board[i].width - size.X) * 0.5f,
                         _board[i].y + (_board[i].height - size.Y) * 0.5f);
                     
                     BeginScissorMode((int)_board[i].x, (int)_board[i].y, (int)_board[i].width, (int)_board[i].height);
-                    DrawTextEx(Program.MainFont, _topics[i], pos, 36, 0, Color.BLACK);
+                    DrawTextEx(Ui.Cafe36, _topics[i], pos, 36, 0, Color.BLACK);
                     EndScissorMode();
                 }
             }
@@ -118,8 +115,8 @@ namespace GoldenKeyMK3.Script
                 var topicTail = _topicPool[topicHead][tailIdx].Replace("_", "\n");
 
                 var topic = string.Empty;
-                if (topicHead != "기타") topic += topicHead;
-                topic += "\n" + topicTail;
+                if (topicHead != "기타") topic += topicHead + ":\n";
+                topic += topicTail;
                 if (!_baseTopics.Contains(topic)) _baseTopics.Add(topic);
             }
 
@@ -145,13 +142,15 @@ namespace GoldenKeyMK3.Script
             Finish();
         }
 
-        public void AddKey()
+        public string AddKey()
         {
             _baseTopics = _baseTopics.OrderBy(_ => Rnd.Next()).ToList();
+            var topic = _baseTopics.Last();
             _baseTopics.Remove(_baseTopics.Last());
 
             _goldenKeys.Add(-1);
             Shuffle();
+            return topic;
         }
 
         private void Finish()
@@ -189,16 +188,11 @@ namespace GoldenKeyMK3.Script
                     : ColorFromHSV(Rnd.NextSingle() * 360, 0.5f, 1);
         }
 
-        private void SaveBoard()
-        {
-            DrawTexture(_chroma, 0, 0, Color.WHITE);
-            TakeScreenshot("board.png");
-        }
-
         // Communication
         
         public List<int> GetGoldenKeys() => _goldenKeys;
         public string[] GetTopics() => _topics;
         public Rectangle[] GetBoard() => _board;
+        public Color[] GetBoardColors() => _boardColor;
     }
 }

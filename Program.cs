@@ -6,7 +6,6 @@ namespace GoldenKeyMK3
 {
     public static class Program
     {
-        public static readonly Font MainFont = LoadFont("Resource/Galmuri.fnt");
         private static bool _shutdownRequest;
         private static bool _shutdown;
 
@@ -35,7 +34,6 @@ namespace GoldenKeyMK3
             }
 
             scenes.Dispose();
-            UnloadFont(MainFont);
             CloseWindow();
         }
     }

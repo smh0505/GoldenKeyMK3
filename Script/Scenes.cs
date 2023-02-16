@@ -31,7 +31,7 @@ namespace GoldenKeyMK3.Script
         {
             // Init itself
             _currScene = Scene.Intro;
-            _switchText = "곡 추첨";
+            _switchText = "황금열쇠";
 
             _minimizeIcon = LoadTexture("Resource/minus.png");
             _closeIcon = LoadTexture("Resource/power.png");
@@ -130,7 +130,7 @@ namespace GoldenKeyMK3.Script
         
         private void PrepareGame()
         {
-            _currScene = Scene.Main;
+            _currScene = Scene.Board;
             _login.Connect();
             _chat.Connect();
         }

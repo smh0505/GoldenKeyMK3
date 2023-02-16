@@ -47,10 +47,9 @@ namespace GoldenKeyMK3.Script
 
         private readonly Texture2D _result;
 
-        public Wheel(List<WheelPanel> options = null)
+        public Wheel()
         {
             WaitList = ImmutableList<string>.Empty;
-            Options = options ?? new List<WheelPanel>();
 
             _result = LoadTexture("Resource/next_key.png");
         }
@@ -80,7 +79,7 @@ namespace GoldenKeyMK3.Script
                     break;
             }
 
-            if (_state == WheelState.Stopping || Options.Any() || shutdownRequest) return;
+            if (_state == WheelState.Stopping || Sum == 0 || shutdownRequest) return;
             if (DrawButton(new Vector2(400, 820), ButtonPool[_state]))
                 OnClick();
             if (IsKeyPressed(KeyboardKey.KEY_SPACE)) OnClick();

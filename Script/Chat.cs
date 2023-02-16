@@ -26,6 +26,8 @@ namespace GoldenKeyMK3.Script
             ImmutableList<(string, string, string)>.Empty;
         private ImmutableList<(string Name, string Song)> _usedList = 
             ImmutableList<(string, string)>.Empty;
+        private ImmutableList<(string Name, string Topic, string Song)> _graveyard = 
+            ImmutableList<(string, string, string)>.Empty;
 
         private int _idx = -1;
         private bool _menu;
@@ -35,6 +37,7 @@ namespace GoldenKeyMK3.Script
         private (string Name, string Song) _current;
         private List<(string Name, string Song)> _temp;
         private int _countUp;
+        private bool _screenshot;
 
         private readonly Texture2D _menuPopup;
         private readonly Texture2D _addKey;
@@ -55,6 +58,7 @@ namespace GoldenKeyMK3.Script
             _current = (string.Empty, string.Empty);
             _temp = new List<(string, string)>();
             _countUp = 0;
+            _screenshot = true;
 
             _menuPopup = LoadTexture("Resource/menu.png");
             _addKey = LoadTexture("Resource/add_key.png");
@@ -97,6 +101,10 @@ namespace GoldenKeyMK3.Script
             if (!shutdownRequest && _state != PollState.Active) DrawButtons();
             if (!shutdownRequest && _menu) DrawMenu();
             if (_state != PollState.Idle) DrawResult(_current);
+
+            if (!_screenshot) return;
+            SaveBoard();
+            _screenshot = false;
         }
 
         public void Dispose()
@@ -184,8 +192,10 @@ namespace GoldenKeyMK3.Script
             {
                 var target = _board.AddKey();
                 _topics = _board.GetTopics();
+                _graveyard = _graveyard.AddRange(_requests.Where(x => x.Topic == target));
                 _requests = _requests.RemoveAll(x => x.Topic == target);
                 _idx = -1;
+                _screenshot = true;
             }
 
             if (Ui.DrawButton(new Rectangle(1000, 420, 240, 240), Color.LIME, 0.8f, _shuffle))
@@ -193,18 +203,18 @@ namespace GoldenKeyMK3.Script
                 _board.Shuffle();
                 _topics = _board.GetTopics();
                 _idx = -1;
+                _screenshot = true;
             }
 
             if (Ui.DrawButton(new Rectangle(680, 330, 560, 60), Color.LIME, 0.8f,
-                    Ui.Galmuri48, "맵 추출하기", 48, Color.WHITE))
+                    Ui.Galmuri48, "리-셋", 48, Color.WHITE))
             {
-                var screenshot = LoadImageFromScreen();
-                var chroma = LoadImage("Resource/board_chroma2.png");
-                ImageDraw(ref screenshot, chroma, new Rectangle(0, 0, 1920, 1080), 
-                    new Rectangle(0, 0, 1920, 1080), Color.WHITE);
-                ExportImage(screenshot, "board.png");
-                UnloadImage(screenshot);
-                UnloadImage(chroma);
+                _board.Restore();
+                _topics = _board.GetTopics();
+                _requests = _requests.AddRange(_graveyard);
+                _graveyard = _graveyard.Clear();
+                _idx = -1;
+                _screenshot = true;
             }
         }
 
@@ -220,6 +230,7 @@ namespace GoldenKeyMK3.Script
             if (_state != PollState.Idle) return;
             _usedList = _usedList.Add(_current);
             _requests = _requests.RemoveAll(x => x.Name == _current.Name);
+            _graveyard = _graveyard.RemoveAll(x => x.Name == _current.Name);
             _current = (string.Empty, string.Empty);
             _countUp = 0;
         }
@@ -282,7 +293,7 @@ namespace GoldenKeyMK3.Script
         private void OnClick(int idx)
         {
             if (idx == 0) _menu = !_menu;
-            else if (!_menu) _idx = idx;
+            else if (!_menu && FindAllSongs(idx).Any()) _idx = idx;
         }
 
         private static IReadOnlyCollection<T> Marquee<T>(float height, float unitHeight, IReadOnlyCollection<T> group,
@@ -305,6 +316,17 @@ namespace GoldenKeyMK3.Script
             if (group.Count >= count && output.Count < count + 1)
                 output.AddRange(group.Take(count + 1 - output.Count));
             return output.ToArray();
+        }
+
+        private static void SaveBoard()
+        {
+            var screenshot = LoadImageFromScreen();
+            var chroma = LoadImage("Resource/board_chroma2.png");
+            ImageDraw(ref screenshot, chroma, new Rectangle(0, 0, 1920, 1080), 
+                new Rectangle(0, 0, 1920, 1080), Color.WHITE);
+            ExportImage(screenshot, "board.png");
+            UnloadImage(screenshot);
+            UnloadImage(chroma);
         }
     }
 }

@@ -13,8 +13,10 @@ namespace GoldenKeyMK3.Script
         private readonly Dictionary<string, string[]> _topicPool;
 
         private List<string> _baseTopics = new ();
+        private List<string> _backupBase = new ();
         private readonly string[] _topics = new string[26];
-        private readonly List<int> _goldenKeys = new (){ 2, 5, 9, 11, 15, 18, 22, 24 };
+        private readonly string[] _backupTopics = new string[26];
+        private List<int> _goldenKeys = new (){ 2, 5, 9, 11, 15, 18, 22, 24 };
 
         private readonly Rectangle[] _board =
         {
@@ -120,7 +122,8 @@ namespace GoldenKeyMK3.Script
                 if (!_baseTopics.Contains(topic)) _baseTopics.Add(topic);
             }
 
-            Finish();
+            _backupBase = new List<string>(_baseTopics);
+            Finish(true);
         }
 
         public void Shuffle()
@@ -139,7 +142,7 @@ namespace GoldenKeyMK3.Script
                 _goldenKeys.Add(newKey);
             }
 
-            Finish();
+            Finish(false);
         }
 
         public string AddKey()
@@ -153,7 +156,7 @@ namespace GoldenKeyMK3.Script
             return topic;
         }
 
-        private void Finish()
+        private void Finish(bool save)
         {
             var temp = _baseTopics.OrderBy(_ => Rnd.Next()).ToList();
             for (var i = 0; i < _topics.Length; i++)
@@ -183,11 +186,24 @@ namespace GoldenKeyMK3.Script
                 }
             }
 
+            if (save) _topics.CopyTo(_backupTopics, 0);
+
             for (var i = 0; i < _board.Length; i++)
                 _boardColor[i] = _goldenKeys.Contains(i) ? Color.YELLOW
                     : ColorFromHSV(Rnd.NextSingle() * 360, 0.5f, 1);
         }
 
+        public void Restore()
+        {
+            _baseTopics = new List<string>(_backupBase);
+            _backupTopics.CopyTo(_topics, 0);
+            _goldenKeys = new List<int> { 2, 5, 9, 11, 15, 18, 22, 24 };
+            
+            for (var i = 0; i < _board.Length; i++)
+                _boardColor[i] = _goldenKeys.Contains(i) ? Color.YELLOW
+                    : ColorFromHSV(Rnd.NextSingle() * 360, 0.5f, 1);
+        }
+        
         // Communication
         
         public List<int> GetGoldenKeys() => _goldenKeys;

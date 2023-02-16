@@ -11,7 +11,8 @@ namespace GoldenKeyMK3
 
         public static void Main()
         {
-            SetConfigFlags(ConfigFlags.FLAG_WINDOW_MAXIMIZED | ConfigFlags.FLAG_WINDOW_UNDECORATED);
+            //TODO Borderless Fullscreen
+            SetConfigFlags(/*ConfigFlags.FLAG_WINDOW_MAXIMIZED | */ConfigFlags.FLAG_WINDOW_UNDECORATED);
             InitWindow(1920, 1080, "황금열쇠 MK3");
             SetTargetFPS(60);
 

@@ -20,7 +20,6 @@ namespace GoldenKeyMK3.Script
         private WebsocketClient _client;
 
         private readonly Board _board;
-        private string[] _topics;
 
         private ImmutableList<(string Name, string Topic, string Song)> _requests = 
             ImmutableList<(string, string, string)>.Empty;
@@ -37,7 +36,6 @@ namespace GoldenKeyMK3.Script
         private (string Name, string Song) _current;
         private List<(string Name, string Song)> _temp;
         private int _countUp;
-        private bool _screenshot;
 
         private readonly Texture2D _menuPopup;
         private readonly Texture2D _addKey;
@@ -50,7 +48,6 @@ namespace GoldenKeyMK3.Script
         {
             _board = board;
             _state = PollState.Idle;
-            _topics = _board.GetTopics();
             
             _menu = false;
             _y = new []{ 0, 0 };
@@ -58,7 +55,6 @@ namespace GoldenKeyMK3.Script
             _current = (string.Empty, string.Empty);
             _temp = new List<(string, string)>();
             _countUp = 0;
-            _screenshot = true;
 
             _menuPopup = LoadTexture("Resource/menu.png");
             _addKey = LoadTexture("Resource/add_key.png");
@@ -80,7 +76,7 @@ namespace GoldenKeyMK3.Script
                 });
                 await _client.Start();
                 _client.Send("CAP REQ :twitch.tv/commands twitch.tv/tags");
-                _client.Send("NICK justinfan1234");
+                _client.Send("NICK justinfan5678");
                 _client.Send("JOIN #arpa__");
                 _exitEvent.WaitOne();
             }
@@ -101,10 +97,6 @@ namespace GoldenKeyMK3.Script
             if (!shutdownRequest && _state != PollState.Active) DrawButtons();
             if (!shutdownRequest && _menu) DrawMenu();
             if (_state != PollState.Idle) DrawResult(_current);
-
-            if (!_screenshot) return;
-            SaveBoard();
-            _screenshot = false;
         }
 
         public void Dispose()
@@ -128,8 +120,9 @@ namespace GoldenKeyMK3.Script
             if (!FindAllSongs(_idx).Any()) DrawTexture(_alert, 332, 192, Color.WHITE);
             else
             {
-                var text = _topics[_idx].Replace("\n", " ");
-                DrawRectangle(332, 192, 622, 62, _board.GetBoardColors()[_idx]);
+                var block = _board.CurrBoard[_idx];
+                var text = block.Topic.Replace("\n", " ");
+                DrawRectangle(332, 192, 622, 62, block.BoxColor);
                 DrawTextEx(Ui.Galmuri48, text, new Vector2(344, 199), 48, 0, Color.BLACK);
 
                 var group = Marquee(406, 30, FindAllSongs(_idx).ToList(), ref _y[0], ref _head[0]).ToArray();
@@ -164,16 +157,18 @@ namespace GoldenKeyMK3.Script
         
         private void DrawButtons()
         {
-            var blocks = _board.GetBoard();
+            var blocks = _board.CurrBoard;
             foreach (var block in blocks)
             {
-                var button = new Rectangle(block.x + 2, block.y + 2, block.width - 4, block.height - 4);
+                var box = block.Box;
+                var button = new Rectangle(box.x + 2, box.y + 2, box.width - 4, box.height - 4);
                 if (!CheckCollisionPointRec(GetMousePosition(), button)) continue;
                 
                 var idx = Array.IndexOf(blocks, block);
                 if (IsMouseButtonPressed(0)) OnClick(idx);
 
-                var text = idx is 0 or 13 || _board.GetGoldenKeys().Contains(idx) ? _topics[idx]
+                var text = idx is 0 or 13 || _board.GoldenKeys.Contains(idx) 
+                    ? _board.CurrBoard[idx].Topic
                     : FindAllSongs(idx).ToArray().Length.ToString();
                 var textSize = MeasureTextEx(Ui.Galmuri48, text, 48, 0);
                 var pos = new Vector2(button.x + (button.width - textSize.X) * 0.5f, 
@@ -191,30 +186,24 @@ namespace GoldenKeyMK3.Script
             if (Ui.DrawButton(new Rectangle(680, 420, 240, 240), Color.LIME, 0.8f, _addKey))
             {
                 var target = _board.AddKey();
-                _topics = _board.GetTopics();
                 _graveyard = _graveyard.AddRange(_requests.Where(x => x.Topic == target));
                 _requests = _requests.RemoveAll(x => x.Topic == target);
                 _idx = -1;
-                _screenshot = true;
             }
 
             if (Ui.DrawButton(new Rectangle(1000, 420, 240, 240), Color.LIME, 0.8f, _shuffle))
             {
                 _board.Shuffle();
-                _topics = _board.GetTopics();
                 _idx = -1;
-                _screenshot = true;
             }
 
             if (Ui.DrawButton(new Rectangle(680, 330, 560, 60), Color.LIME, 0.8f,
                     Ui.Galmuri48, "리-셋", 48, Color.WHITE))
             {
                 _board.Restore();
-                _topics = _board.GetTopics();
                 _requests = _requests.AddRange(_graveyard);
                 _graveyard = _graveyard.Clear();
                 _idx = -1;
-                _screenshot = true;
             }
         }
 
@@ -242,27 +231,44 @@ namespace GoldenKeyMK3.Script
             var re = new Regex(@"^(?:@(?<tags>(?:.+?=.*?)(?:;.+?=.*?)*) )?(?::(?<source>[^ ]+?) )?(?<command>[0-9]{3}|[a-zA-Z]+)(?: (?<params>.+?))?(?: :(?<content>.*))?$");
             var objects = re.Match(msg).Groups;
 
-            if (!IsValid(objects["content"].ToString())) return;
+            if (!IsValid(objects["content"].ToString(), out var topic, out var song)) return;
             
             var name = GetUsername(objects["tags"].ToString(), objects["source"].ToString());
             if (_usedList.Select(x => x.Name).Contains(name)) return;
             
-            var order = GetOrder(objects["content"].ToString());
-
-            var idx = _topics[order.Item1];
-            _requests = _requests.Add((name, idx, order.Item2));
+            _requests = _requests.Add((name, topic, song));
             if (_requests.Count(x => x.Name == name) > 3)
                 _requests = _requests.Remove(_requests.First(x => x.Name == name));
         }
 
-        private bool IsValid(string text)
+        private bool IsValid(string text, out string topic, out string song)
         {
             var content = text.Split(' ', 3);
+            
+            if (content.Length < 3)
+            {
+                topic = string.Empty;
+                song = string.Empty;
+                return false;
+            }
+            
+            if (!int.TryParse(content[1], out var idx))
+            {
+                topic = string.Empty;
+                song = string.Empty;
+                return false;
+            }
+            
+            if (idx is < 1 or 13 or > 25)
+            {
+                topic = string.Empty;
+                song = string.Empty;
+                return false;
+            }
 
-            if (content.Length < 3) return false;
-            if (!int.TryParse(content[1], out var idx)) return false;
-            if (idx is < 1 or > 24) return false;
-            return !_board.GetGoldenKeys().Contains(idx);
+            topic = _board.CurrBoard[idx].Topic;
+            song = content[2];
+            return !_board.GoldenKeys.Contains(idx >= 13 ? idx + 1 : idx);
         }
 
         private static string GetUsername(string tags, string source)
@@ -279,16 +285,10 @@ namespace GoldenKeyMK3.Script
             return name;
         }
 
-        private static (int, string) GetOrder(string text)
-        {
-            var content = text.Split(' ', 3);
-            var idx = Convert.ToInt32(content[1]);
-            return idx >= 13 ? (idx + 1, content[2]) : (idx, content[2]);
-        }
-
         private IEnumerable<(string Name, string Song)> FindAllSongs(int idx)
             => idx < 0 ? ImmutableList<(string, string)>.Empty 
-                : _requests.FindAll(x => x.Topic == _topics[idx]).Select(x => (x.Name, x.Song));
+                : _requests.FindAll(x => x.Topic == _board.CurrBoard[idx].Topic)
+                    .Select(x => (x.Name, x.Song));
 
         private void OnClick(int idx)
         {
@@ -316,17 +316,6 @@ namespace GoldenKeyMK3.Script
             if (group.Count >= count && output.Count < count + 1)
                 output.AddRange(group.Take(count + 1 - output.Count));
             return output.ToArray();
-        }
-
-        private static void SaveBoard()
-        {
-            var screenshot = LoadImageFromScreen();
-            var chroma = LoadImage("Resource/board_chroma2.png");
-            ImageDraw(ref screenshot, chroma, new Rectangle(0, 0, 1920, 1080), 
-                new Rectangle(0, 0, 1920, 1080), Color.WHITE);
-            ExportImage(screenshot, "board.png");
-            UnloadImage(screenshot);
-            UnloadImage(chroma);
         }
     }
 }

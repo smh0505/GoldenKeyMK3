@@ -50,6 +50,7 @@ namespace GoldenKeyMK3.Script
         public Wheel()
         {
             WaitList = ImmutableList<string>.Empty;
+            Options = new List<WheelPanel>();
 
             _result = LoadTexture("Resource/next_key.png");
         }

@@ -66,6 +66,19 @@ namespace GoldenKeyMK3.Script
             return isClicked;
         }
 
+        public static bool DrawButton(Rectangle button, Color buttonColor, float hoverFade)
+        {
+            var isClicked = false;
+            var hoverColor = Fade(buttonColor, hoverFade);
+            if (CheckCollisionPointRec(GetMousePosition(), button))
+            {
+                if (IsMouseButtonPressed(0)) isClicked = true;
+                hoverColor = buttonColor;
+            }
+            DrawRectangleRec(button, hoverColor);
+            return isClicked;
+        }
+
         public static void Dispose()
         {
             UnloadFont(Galmuri24);

@@ -29,6 +29,8 @@ namespace GoldenKeyMK3.Script
 
     public class Wheel
     {
+        private readonly Chat _chat;
+        
         public ImmutableList<string> WaitList;
         public List<WheelPanel> Options;
         
@@ -47,8 +49,10 @@ namespace GoldenKeyMK3.Script
 
         private readonly Texture2D _result;
 
-        public Wheel()
+        public Wheel(Chat chat)
         {
+            _chat = chat;
+            
             WaitList = ImmutableList<string>.Empty;
             Options = new List<WheelPanel>();
 
@@ -57,6 +61,7 @@ namespace GoldenKeyMK3.Script
 
         public void UpdateWheel(bool shutdownRequest)
         {
+            if (!shutdownRequest && _chat.State != PollState.Active) _chat.DrawButtons();
             if (Sum > 0) DrawWheel();
             
             switch (_state)

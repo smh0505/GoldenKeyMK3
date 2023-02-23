@@ -52,12 +52,17 @@ namespace GoldenKeyMK3.Script
 
         public bool Draw(bool shutdownRequest)
         {
+            var textSize = MeasureTextEx(Ui.Galmuri48, "붙여넣기", 48, 0);
+            var textPos = new Vector2(12 + (160 - textSize.X) * 0.5f, 12 + (80 - textSize.Y) * 0.5f);
+            
             DrawTexture(_login, 0, 0, Color.WHITE);
             if (_failed) DrawAlert();
             DrawTextBox();
+            
             if (shutdownRequest) return false;
-            if (DrawButton(new Rectangle(12, 12, 160, 80), Color.GREEN))
+            if (Ui.DrawButton(new Rectangle(12, 12, 160, 80), Color.GREEN, 0.7f))
                 Input = GetClipboardText_();
+            DrawTextEx(Ui.Galmuri48, "붙여넣기", textPos, 48, 0, Color.BLACK);
             return GetInput().Result;
         }
 
@@ -90,9 +95,6 @@ namespace GoldenKeyMK3.Script
             EndScissorMode();
         }
 
-        private static bool DrawButton(Rectangle button, Color buttonColor)
-            => Ui.DrawButton(button, buttonColor, 0.7f, Ui.Galmuri48, "붙여넣기", 48, Color.BLACK);
-        
         // Controls
 
         private async Task<bool> GetInput()

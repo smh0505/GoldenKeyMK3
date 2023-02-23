@@ -14,45 +14,57 @@ namespace GoldenKeyMK3.Script
 
     public class Scenes
     {
-        private Scene _currScene;
+        public Scene CurrScene;
+        public readonly Close CloseScene;
         private readonly Wheel _wheel;
         private readonly Login _login;
         private readonly LoadScene _load;
-        public readonly Close CloseScene;
         private readonly Chat _chat;
         private readonly Board _board;
         
-        private static string _switchText;
-
         private readonly Texture2D _minimizeIcon;
         private readonly Texture2D _closeIcon;
+        private readonly Texture2D _timer;
+
+        private int _laps;
+        private bool _isClockwise;
+        private bool _isTicking;
+        private double _beginTime;
+        private double _currTime;
+        private decimal _timePassed;
 
         public Scenes()
         {
             // Init itself
-            _currScene = Scene.Intro;
-            _switchText = "황금열쇠";
+            CurrScene = Scene.Intro;
 
             _minimizeIcon = LoadTexture("Resource/minus.png");
             _closeIcon = LoadTexture("Resource/power.png");
+            _timer = LoadTexture("Resource/timerButton.png");
             
             // Init scenes
-            _wheel = new Wheel();
+            _board = new Board();
+            _chat = new Chat(_board, this);
+            _wheel = new Wheel(_chat);
             _login = new Login(_wheel);
             _load = new LoadScene(_wheel);
             CloseScene = new Close();
-            _board = new Board();
-            _chat = new Chat(_board);
 
             if (File.Exists("default.yml")) SaveLoad.LoadSetting(_login);
+            _laps = 1;
+            _isClockwise = true;
+            _isTicking = false;
+            _beginTime = 0;
+            _currTime = 0;
+            _timePassed = 0;
         }
 
         public void Draw(bool shutdownRequest)
         {
-            switch (_currScene)
+            switch (CurrScene)
             {
                 case Scene.Intro:
-                    if (Intro.Draw()) _currScene = Scene.Login;
+                    if (Intro.Draw()) CurrScene = Scene.Login;
                     break;
                 case Scene.Login:
                     if (_login.Draw(shutdownRequest)) PostLogin();
@@ -62,13 +74,13 @@ namespace GoldenKeyMK3.Script
                     break;
                 case Scene.Main:
                     _board.Draw();
+                    Timer(shutdownRequest);
                     _wheel.UpdateWheel(shutdownRequest);
                     break;
                 case Scene.Board:
                     _board.Draw();
+                    Timer(shutdownRequest);
                     _chat.Draw(shutdownRequest);
-                    break;
-                default:
                     break;
             }
         }
@@ -77,6 +89,7 @@ namespace GoldenKeyMK3.Script
         {
             UnloadTexture(_minimizeIcon);
             UnloadTexture(_closeIcon);
+            UnloadTexture(_timer);
             
             if (_wheel.Options.Any()) SaveLoad.SaveLog(_wheel);
 
@@ -94,33 +107,58 @@ namespace GoldenKeyMK3.Script
 
         public bool Buttons()
         {
-            var minimizeButton = (int)_currScene > 2 ? new Rectangle(1476, 192, 50, 50)
+            var minimizeButton = (int)CurrScene > 2 ? new Rectangle(1476, 192, 50, 50)
                 : new Rectangle(1796, 12, 50, 50);
-            var closeButton = (int)_currScene > 2 ? new Rectangle(1538, 192, 50, 50)
+            var closeButton = (int)CurrScene > 2 ? new Rectangle(1538, 192, 50, 50)
                 : new Rectangle(1858, 12, 50, 50);
-            var switchButton = new Rectangle(1348, 828, 240, 60);
             
-            if (DrawMinimizeButton(minimizeButton, Color.GREEN)) MinimizeWindow();
-            if ((int)_currScene > 2 && DrawSwitchButton(switchButton, Color.YELLOW)) OnClick();
-            return DrawCloseButton(closeButton, Color.RED);
+            if (Ui.DrawButton(minimizeButton, Color.GREEN, 0.7f)) MinimizeWindow();
+            DrawTexture(_minimizeIcon, (int)minimizeButton.x, (int)minimizeButton.y, Color.WHITE);
+            
+            var output = Ui.DrawButton(closeButton, Color.RED, 0.7f);
+            DrawTexture(_closeIcon, (int)closeButton.x, (int)closeButton.y, Color.WHITE);
+            return output;
         }
 
-        private bool DrawMinimizeButton(Rectangle button, Color buttonColor)
-            => Ui.DrawButton(button, buttonColor, 0.7f, _minimizeIcon);
-        
-        private bool DrawCloseButton(Rectangle button, Color buttonColor)
-            => Ui.DrawButton(button, buttonColor, 0.7f, _closeIcon);
+        private void Timer(bool shutdownRequest)
+        {
+            if (!shutdownRequest && _isTicking) _timePassed = (decimal)(GetTime() - _beginTime + _currTime);
+            
+            if (!shutdownRequest && Ui.DrawButton(new Rectangle(966, 192, 30, 50), Color.GOLD, 0.7f))
+                _laps = Math.Clamp(--_laps, 1, 3);
+            if (!shutdownRequest && Ui.DrawButton(new Rectangle(1046, 192, 30, 50), Color.GOLD, 0.7f))
+                _laps = Math.Clamp(++_laps, 1, 3);
+            if (!shutdownRequest && Ui.DrawButton(new Rectangle(1080, 192, 120, 50), Color.LIME, 0.7f))
+                _isClockwise = !_isClockwise;
+            if (!shutdownRequest && Ui.DrawButton(new Rectangle(1202, 192, 40, 50), Color.YELLOW, 0.7f))
+                _beginTime -= 60;
+            if (!shutdownRequest && Ui.DrawButton(new Rectangle(1244, 192, 180, 50), _isTicking ? Color.GREEN : Color.RED, 0.7f))
+            {
+                _isTicking = !_isTicking;
+                if (_isTicking) _beginTime = GetTime();
+                else _currTime = GetTime() - _beginTime;
+            }
+            if (!shutdownRequest && Ui.DrawButton(new Rectangle(1426, 192, 40, 50), Color.YELLOW, 0.7f))
+            {
+                _beginTime += 60;
+                if (_beginTime > GetTime()) _beginTime = GetTime();
+            }
 
-        private static bool DrawSwitchButton(Rectangle button, Color buttonColor)
-            => Ui.DrawButton(button, buttonColor, 0.7f, Ui.Galmuri48,
-                _switchText, 48, Color.BLACK);
+            DrawTexture(_timer, 966, 192, Color.BLACK);
+            Ui.DrawCenteredText(new Rectangle(996, 192, 50, 50), Ui.Galmuri48, 
+                _laps.ToString(), 48, Color.BLACK);
+            Ui.DrawCenteredText(new Rectangle(1080, 192, 120, 50), Ui.Galmuri48, 
+                _isClockwise ? "시계" : "반시계", 48, Color.BLACK);
+            Ui.DrawCenteredText(new Rectangle(1204, 192, 260, 50), Ui.Galmuri48, 
+                $"{_timePassed / 3600:00}:{(_timePassed / 60) % 60:00}:{_timePassed % 60:00}", 48, Color.BLACK);
+        }
 
         // Controls
 
         private void PostLogin()
         {
             if (Directory.Exists("Logs") && Directory.GetFiles("Logs").Any())
-                _currScene = Scene.Load;
+                CurrScene = Scene.Load;
             else
             {
                 _wheel.Options = SaveLoad.DefaultOptions;
@@ -130,26 +168,9 @@ namespace GoldenKeyMK3.Script
         
         private void PrepareGame()
         {
-            _currScene = Scene.Board;
+            CurrScene = Scene.Board;
             _login.Connect();
             _chat.Connect();
-        }
-
-        private void OnClick()
-        {
-            switch (_currScene)
-            {
-                case Scene.Main:
-                    _currScene = Scene.Board;
-                    _switchText = "황금열쇠";
-                    break;
-                case Scene.Board:
-                    _currScene = Scene.Main;
-                    _switchText = "곡 추첨";
-                    break;
-                default:
-                    break;
-            }
         }
     }
 }

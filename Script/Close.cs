@@ -23,7 +23,9 @@ namespace GoldenKeyMK3.Script
             // UIs
             DrawTexture(_closeScreen, 0, 0, Color.WHITE);
             DrawTextEx(Ui.Galmuri36, $"종료까지 앞으로 {5 - _count}회", new Vector2(12, 140), 36, 0, Color.WHITE);
-            shutdownRequest = !DrawButton(new Rectangle(12, GetScreenHeight() - 168, 100, 100), Color.GREEN);
+
+            shutdownRequest = !Ui.DrawButton(new Rectangle(12, 912, 100, 100), Color.GREEN, 0.7f);
+            DrawTexture(_cancelIcon, 12, 912, Color.WHITE);
 
             // Exit Sequence
             if (IsKeyPressed(KeyboardKey.KEY_SPACE)) _count++;
@@ -35,10 +37,5 @@ namespace GoldenKeyMK3.Script
             UnloadTexture(_cancelIcon);
             UnloadTexture(_closeScreen);
         }
-
-        // UIs
-
-        private bool DrawButton(Rectangle button, Color buttonColor)
-            => Ui.DrawButton(button, buttonColor, 0.7f, _cancelIcon);
     }
 }

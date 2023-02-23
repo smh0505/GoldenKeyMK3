@@ -20,6 +20,7 @@ namespace GoldenKeyMK3.Script
         private WebsocketClient _client;
 
         private readonly Board _board;
+        private readonly Scenes _scenes;
 
         private ImmutableList<(string Name, string Topic, string Song)> _requests = 
             ImmutableList<(string, string, string)>.Empty;
@@ -28,9 +29,9 @@ namespace GoldenKeyMK3.Script
         private ImmutableList<(string Name, string Topic, string Song)> _graveyard = 
             ImmutableList<(string, string, string)>.Empty;
 
+        public PollState State;
         private int _idx = -1;
         private bool _menu;
-        private PollState _state;
         private readonly int[] _y;
         private readonly int[] _head;
         private (string Name, string Song) _current;
@@ -38,16 +39,16 @@ namespace GoldenKeyMK3.Script
         private int _countUp;
 
         private readonly Texture2D _menuPopup;
-        private readonly Texture2D _addKey;
-        private readonly Texture2D _shuffle;
+        private readonly Texture2D _menuButton;
         private readonly Texture2D _background;
         private readonly Texture2D _alert;
         private readonly Texture2D _result;
 
-        public Chat(Board board)
+        public Chat(Board board, Scenes scenes)
         {
             _board = board;
-            _state = PollState.Idle;
+            _scenes = scenes;
+            State = PollState.Idle;
             
             _menu = false;
             _y = new []{ 0, 0 };
@@ -57,8 +58,7 @@ namespace GoldenKeyMK3.Script
             _countUp = 0;
 
             _menuPopup = LoadTexture("Resource/menu.png");
-            _addKey = LoadTexture("Resource/add_key.png");
-            _shuffle = LoadTexture("Resource/shuffle.png");
+            _menuButton = LoadTexture("Resource/menuButton.png");
             _background = LoadTexture("Resource/list_background.png");
             _alert = LoadTexture("Resource/alert.png");
             _result = LoadTexture("Resource/result.png");
@@ -86,25 +86,24 @@ namespace GoldenKeyMK3.Script
         {
             DrawLists();
 
-            if (_state == PollState.Active)
+            if (State == PollState.Active)
             {
                 _countUp++;
                 _current = _temp[new Random().Next(_temp.Count)];
-                if (_countUp == 150) _state = PollState.Result;
+                if (_countUp == 150) State = PollState.Result;
             }
             
-            if (!shutdownRequest && _state != PollState.Active && FindAllSongs(_idx).ToList().Count > 0) DrawPollButton();
-            if (!shutdownRequest && _state != PollState.Active) DrawButtons();
+            if (!shutdownRequest && State != PollState.Active && FindAllSongs(_idx).ToList().Count > 0) DrawPollButton();
+            if (!shutdownRequest && State != PollState.Active) DrawButtons();
             if (!shutdownRequest && _menu) DrawMenu();
-            if (_state != PollState.Idle) DrawResult(_current);
+            if (State != PollState.Idle) DrawResult(_current);
         }
 
         public void Dispose()
         {
             _exitEvent.Set();
             UnloadTexture(_menuPopup);
-            UnloadTexture(_shuffle);
-            UnloadTexture(_addKey);
+            UnloadTexture(_menuButton);
             UnloadTexture(_background);
             UnloadTexture(_alert);
             UnloadTexture(_result);
@@ -155,7 +154,7 @@ namespace GoldenKeyMK3.Script
             EndScissorMode();
         }
         
-        private void DrawButtons()
+        public void DrawButtons()
         {
             var blocks = _board.CurrBoard;
             foreach (var block in blocks)
@@ -170,12 +169,8 @@ namespace GoldenKeyMK3.Script
                 var text = idx is 0 or 13 || _board.GoldenKeys.Contains(idx) 
                     ? _board.CurrBoard[idx].Topic
                     : FindAllSongs(idx).ToArray().Length.ToString();
-                var textSize = MeasureTextEx(Ui.Galmuri48, text, 48, 0);
-                var pos = new Vector2(button.x + (button.width - textSize.X) * 0.5f, 
-                    button.y + (button.height - textSize.Y) * 0.5f);
-
                 DrawRectangleRec(button, Fade(Color.WHITE, 0.7f));
-                DrawTextEx(Ui.Galmuri48, text, pos, 48, 0, Color.BLACK);
+                Ui.DrawCenteredText(button, Ui.Galmuri48, text, 48, Color.BLACK);
             }
         }
 
@@ -183,7 +178,7 @@ namespace GoldenKeyMK3.Script
         {
             DrawTexture(_menuPopup, 640, 300, Color.WHITE);
             
-            if (Ui.DrawButton(new Rectangle(680, 420, 240, 240), Color.LIME, 0.8f, _addKey))
+            if (Ui.DrawButton(new Rectangle(680, 420, 240, 240), Color.LIME, 0.8f))
             {
                 var target = _board.AddKey();
                 _graveyard = _graveyard.AddRange(_requests.Where(x => x.Topic == target));
@@ -191,32 +186,35 @@ namespace GoldenKeyMK3.Script
                 _idx = -1;
             }
 
-            if (Ui.DrawButton(new Rectangle(1000, 420, 240, 240), Color.LIME, 0.8f, _shuffle))
+            if (Ui.DrawButton(new Rectangle(1000, 420, 240, 240), Color.LIME, 0.8f))
             {
                 _board.Shuffle();
                 _idx = -1;
             }
 
-            if (Ui.DrawButton(new Rectangle(680, 330, 560, 60), Color.LIME, 0.8f,
-                    Ui.Galmuri48, "리-셋", 48, Color.WHITE))
+            if (Ui.DrawButton(new Rectangle(680, 330, 560, 60), Color.LIME, 0.8f))
             {
                 _board.Restore();
                 _requests = _requests.AddRange(_graveyard);
                 _graveyard = _graveyard.Clear();
                 _idx = -1;
             }
+            
+            DrawTexture(_menuButton, 640, 300, Color.WHITE);
         }
 
         private void DrawPollButton()
         {
             var texts = new []{ "추첨", string.Empty, "다음" };
+            var button = new Rectangle(332, 840, 160, 48);
+            var isClicked = !Ui.DrawButton(button, Color.GREEN, 0.7f);
+            Ui.DrawCenteredText(button, Ui.Galmuri36, texts[(int)State], 36, Color.BLACK);
+            if (!isClicked) return;
             
-            if (!Ui.DrawButton(new Rectangle(332, 840, 160, 48), Color.GREEN, 0.7f,
-                    Ui.Galmuri36, texts[(int)_state], 36, Color.BLACK)) return;
-            if (_state == PollState.Idle) _temp = FindAllSongs(_idx).ToList();
-            _state = (PollState)(((int)_state + 1) % 3);
+            if (State == PollState.Idle) _temp = FindAllSongs(_idx).ToList();
+            State = (PollState)(((int)State + 1) % 3);
             
-            if (_state != PollState.Idle) return;
+            if (State != PollState.Idle) return;
             _usedList = _usedList.Add(_current);
             _requests = _requests.RemoveAll(x => x.Name == _current.Name);
             _graveyard = _graveyard.RemoveAll(x => x.Name == _current.Name);
@@ -259,7 +257,7 @@ namespace GoldenKeyMK3.Script
                 return false;
             }
             
-            if (idx is < 1 or 13 or > 25)
+            if (idx is < 1 or > 24)
             {
                 topic = string.Empty;
                 song = string.Empty;
@@ -286,14 +284,24 @@ namespace GoldenKeyMK3.Script
         }
 
         private IEnumerable<(string Name, string Song)> FindAllSongs(int idx)
-            => idx < 0 ? ImmutableList<(string, string)>.Empty 
+            => idx is < 0 or >= 26 ? ImmutableList<(string, string)>.Empty 
                 : _requests.FindAll(x => x.Topic == _board.CurrBoard[idx].Topic)
                     .Select(x => (x.Name, x.Song));
 
         private void OnClick(int idx)
         {
-            if (idx == 0) _menu = !_menu;
-            else if (!_menu && FindAllSongs(idx).Any()) _idx = idx;
+            switch (idx)
+            {
+                case 0:
+                    _menu = !_menu;
+                    break;
+                default:
+                    if (_menu) break;
+                    if (_board.GoldenKeys.Contains(idx))
+                        _scenes.CurrScene = _scenes.CurrScene == Scene.Board ? Scene.Main : Scene.Board;
+                    else _idx = idx;
+                    break;
+            }
         }
 
         private static IReadOnlyCollection<T> Marquee<T>(float height, float unitHeight, IReadOnlyCollection<T> group,

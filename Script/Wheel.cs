@@ -61,7 +61,7 @@ namespace GoldenKeyMK3.Script
 
         public void UpdateWheel(bool shutdownRequest)
         {
-            if (!shutdownRequest && _chat.State != PollState.Active) _chat.DrawButtons();
+            if (!shutdownRequest && _chat.State == PollState.Idle) _chat.DrawButtons();
             if (Sum > 0) DrawWheel();
             
             switch (_state)

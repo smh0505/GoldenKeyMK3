@@ -14,6 +14,30 @@ namespace GoldenKeyMK3.Script
         Result
     }
 
+    public struct PollRequest
+    {
+        public string Name { get; }
+        public string Topic { get; }
+        public string Song { get; }
+        public double Timestamp { get; }
+
+        public PollRequest()
+        {
+            Name = string.Empty;
+            Topic = string.Empty;
+            Song = string.Empty;
+            Timestamp = 0;
+        }
+        
+        public PollRequest(string name, string topic, string song, double timestamp)
+        {
+            Name = name;
+            Topic = topic;
+            Song = song;
+            Timestamp = timestamp;
+        }
+    }
+
     public class Chat
     {
         private readonly ManualResetEvent _exitEvent = new (false);
@@ -22,21 +46,19 @@ namespace GoldenKeyMK3.Script
         private readonly Board _board;
         private readonly Scenes _scenes;
 
-        private ImmutableList<(string Name, string Topic, string Song)> _requests = 
-            ImmutableList<(string, string, string)>.Empty;
-        private ImmutableList<(string Name, string Song)> _usedList = 
-            ImmutableList<(string, string)>.Empty;
-        private ImmutableList<(string Name, string Topic, string Song)> _graveyard = 
-            ImmutableList<(string, string, string)>.Empty;
+        private ImmutableList<PollRequest> _requests = ImmutableList<PollRequest>.Empty;
+        private ImmutableList<PollRequest> _usedList = ImmutableList<PollRequest>.Empty;
+        private ImmutableList<PollRequest> _graveyard = ImmutableList<PollRequest>.Empty;
 
         public PollState State;
         private int _idx = -1;
         private bool _menu;
         private readonly int[] _y;
         private readonly int[] _head;
-        private (string Name, string Song) _current;
-        private List<(string Name, string Song)> _temp;
+        private PollRequest _current;
+        private List<PollRequest> _temp;
         private int _countUp;
+        private double _timestamp;
 
         private readonly Texture2D _menuPopup;
         private readonly Texture2D _menuButton;
@@ -53,9 +75,10 @@ namespace GoldenKeyMK3.Script
             _menu = false;
             _y = new []{ 0, 0 };
             _head = new []{ 0, 0 };
-            _current = (string.Empty, string.Empty);
-            _temp = new List<(string, string)>();
+            _current = new PollRequest();
+            _temp = new List<PollRequest>();
             _countUp = 0;
+            _timestamp = 0;
 
             _menuPopup = LoadTexture("Resource/menu.png");
             _menuButton = LoadTexture("Resource/menuButton.png");
@@ -84,6 +107,7 @@ namespace GoldenKeyMK3.Script
 
         public void Draw(bool shutdownRequest)
         {
+            _timestamp = GetTime();
             DrawLists();
 
             if (State == PollState.Active)
@@ -93,8 +117,8 @@ namespace GoldenKeyMK3.Script
                 if (_countUp == 150) State = PollState.Result;
             }
             
-            if (!shutdownRequest && State != PollState.Active && FindAllSongs(_idx).ToList().Count > 0) DrawPollButton();
-            if (!shutdownRequest && State != PollState.Active) DrawButtons();
+            if (!shutdownRequest && FindAllSongs(_idx).ToList().Count > 0) DrawPollButton();
+            if (!shutdownRequest && State == PollState.Idle) DrawButtons();
             if (!shutdownRequest && _menu) DrawMenu();
             if (State != PollState.Idle) DrawResult(_current);
         }
@@ -145,7 +169,7 @@ namespace GoldenKeyMK3.Script
             EndScissorMode();
         }
 
-        private void DrawResult((string Name, string Song) request)
+        private void DrawResult(PollRequest request)
         {
             DrawTexture(_result, 332, 254, Color.WHITE);
             BeginScissorMode(332, 254, 622, 406);
@@ -205,21 +229,47 @@ namespace GoldenKeyMK3.Script
 
         private void DrawPollButton()
         {
-            var texts = new []{ "추첨", string.Empty, "다음" };
-            var button = new Rectangle(332, 840, 160, 48);
-            var isClicked = !Ui.DrawButton(button, Color.GREEN, 0.7f);
-            Ui.DrawCenteredText(button, Ui.Galmuri36, texts[(int)State], 36, Color.BLACK);
-            if (!isClicked) return;
-            
-            if (State == PollState.Idle) _temp = FindAllSongs(_idx).ToList();
-            State = (PollState)(((int)State + 1) % 3);
-            
-            if (State != PollState.Idle) return;
-            _usedList = _usedList.Add(_current);
-            _requests = _requests.RemoveAll(x => x.Name == _current.Name);
-            _graveyard = _graveyard.RemoveAll(x => x.Name == _current.Name);
-            _current = (string.Empty, string.Empty);
-            _countUp = 0;
+            switch (State)
+            {
+                case PollState.Idle:
+                    var button = new Rectangle(332, 840, 160, 48);
+                    if (Ui.DrawButton(button, Color.GREEN, 0.7f))
+                    {
+                        State = PollState.Active;
+                        _temp = FindAllSongs(_idx).ToList();
+                    }
+                    Ui.DrawCenteredText(button, Ui.Galmuri36, "추첨", 36, Color.BLACK);
+                    break;
+                case PollState.Active:
+                    _countUp++;
+                    _current = _temp[new Random().Next(_temp.Count)];
+                    if (_countUp == 150) State = PollState.Result;
+                    break;
+                case PollState.Result:
+                    var button1 = new Rectangle(332, 840, 78, 48);
+                    if (Ui.DrawButton(button1, Color.GREEN, 0.7f))
+                    {
+                        State = PollState.Idle;
+                        _usedList = _usedList.Add(_current);
+                        _requests = _requests.RemoveAll(x => x.Name == _current.Name);
+                        _graveyard = _graveyard.RemoveAll(x => x.Name == _current.Name);
+                        _current = new PollRequest();
+                        _countUp = 0;
+                    }
+                    Ui.DrawCenteredText(button1, Ui.Galmuri36, "다음", 36, Color.BLACK);
+
+                    var button2 = new Rectangle(414, 840, 78, 48);
+                    if (Ui.DrawButton(button2, Color.GREEN, 0.7f))
+                    {
+                        _requests = _requests.Remove(_current);
+                        _temp = FindAllSongs(_idx).ToList();
+                        State = _temp.Any() ? PollState.Idle : PollState.Active;
+                        _current = new PollRequest();
+                        _countUp = 0;
+                    }
+                    Ui.DrawCenteredText(button2, Ui.Galmuri36, "스킵", 36, Color.BLACK);
+                    break;
+            }
         }
 
         // Main Methods
@@ -233,10 +283,13 @@ namespace GoldenKeyMK3.Script
             
             var name = GetUsername(objects["tags"].ToString(), objects["source"].ToString());
             if (_usedList.Select(x => x.Name).Contains(name)) return;
+            if (GetTime() - _requests.FindLast(x => x.Name == name).Timestamp < 60) return;
             
-            _requests = _requests.Add((name, topic, song));
-            if (_requests.Count(x => x.Name == name) > 3)
-                _requests = _requests.Remove(_requests.First(x => x.Name == name));
+            _requests = _requests.Add(new PollRequest(name, topic, song, _timestamp));
+            if (_requests.Count(x => x.Name == name) + _graveyard.Count(x => x.Name == name) <= 3) return;
+            if (_graveyard.FindLastIndex(x => x.Name == name) != -1)
+                _graveyard = _graveyard.Remove(_graveyard.First(x => x.Name == name));
+            else _requests = _requests.Remove(_requests.First(x => x.Name == name));
         }
 
         private bool IsValid(string text, out string topic, out string song)
@@ -264,7 +317,7 @@ namespace GoldenKeyMK3.Script
                 return false;
             }
 
-            topic = _board.CurrBoard[idx].Topic;
+            topic = _board.CurrBoard[idx >= 13 ? idx + 1 : idx].Topic;
             song = content[2];
             return !_board.GoldenKeys.Contains(idx >= 13 ? idx + 1 : idx);
         }
@@ -283,10 +336,10 @@ namespace GoldenKeyMK3.Script
             return name;
         }
 
-        private IEnumerable<(string Name, string Song)> FindAllSongs(int idx)
-            => idx is < 0 or >= 26 ? ImmutableList<(string, string)>.Empty 
-                : _requests.FindAll(x => x.Topic == _board.CurrBoard[idx].Topic)
-                    .Select(x => (x.Name, x.Song));
+        private IEnumerable<PollRequest> FindAllSongs(int idx)
+            => idx is < 0 or >= 26
+                ? ImmutableList<PollRequest>.Empty
+                : _requests.FindAll(x => x.Topic == _board.CurrBoard[idx].Topic);
 
         private void OnClick(int idx)
         {

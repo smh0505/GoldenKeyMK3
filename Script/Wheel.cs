@@ -44,6 +44,7 @@ namespace GoldenKeyMK3.Script
         {
             {WheelState.Idle, "돌리기"},
             {WheelState.Spinning, "멈추기"},
+            {WheelState.Stopping, string.Empty},
             {WheelState.Result, "다음"}
         };
 
@@ -86,8 +87,9 @@ namespace GoldenKeyMK3.Script
             }
 
             if (_state == WheelState.Stopping || Sum == 0 || shutdownRequest) return;
-            if (DrawButton(new Vector2(400, 820), ButtonPool[_state]))
+            if (Ui.DrawButton(new Vector2(400, 820), 60.0f, Color.GREEN, 0.7f))
                 OnClick();
+            Ui.DrawCenteredText(new Rectangle(340, 760, 120, 120), Ui.Galmuri36, ButtonPool[_state], 36, Color.BLACK);
             if (IsKeyPressed(KeyboardKey.KEY_SPACE)) OnClick();
         }
 
@@ -127,10 +129,6 @@ namespace GoldenKeyMK3.Script
             Vector2[] vtx = { new (670, 280), new (680, 300), new (690, 280) };
             DrawTriangle(vtx[0], vtx[1], vtx[2], Color.BLACK);
         }
-
-        private static bool DrawButton(Vector2 center, string buttonText)
-            => Ui.DrawButton(center, 60.0f, Color.GREEN, 0.7f,
-                Ui.Galmuri36, buttonText, 36, Color.BLACK);
 
         private void DrawResult()
         { 

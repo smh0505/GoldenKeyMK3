@@ -1,6 +1,5 @@
 ﻿using System.Numerics;
 using Raylib_cs;
-using YamlDotNet.Serialization.ObjectGraphVisitors;
 using static Raylib_cs.Raylib;
 
 namespace GoldenKeyMK3.Script
@@ -13,14 +12,10 @@ namespace GoldenKeyMK3.Script
         public static readonly Font Galmuri60 = LoadFont("Resource/Galmuri60.fnt");
         public static readonly Font Cafe36 = LoadFont("Resource/Cafe36.fnt");
 
-        public static bool DrawButton(Vector2 center, float radius, Color buttonColor, float hoverFade,
-            Font font, string buttonText, float fontSize, Color fontColor)
+        public static bool DrawButton(Vector2 center, float radius, Color buttonColor, float hoverFade)
         {
             var isClicked = false;
             var hoverColor = Fade(buttonColor, hoverFade);
-            var textSize = MeasureTextEx(font, buttonText, fontSize, 0);
-            var textPos = new Vector2(center.X - textSize.X * 0.5f, center.Y - textSize.Y * 0.5f);
-
             if (CheckCollisionPointCircle(GetMousePosition(), center, radius))
             {
                 if (IsMouseButtonPressed(0)) isClicked = true;
@@ -28,7 +23,6 @@ namespace GoldenKeyMK3.Script
             }
 
             DrawCircleV(center, radius, hoverColor);
-            DrawTextEx(font, buttonText, textPos, fontSize, 0, fontColor);
             return isClicked;
         }
 
@@ -51,6 +45,45 @@ namespace GoldenKeyMK3.Script
             var textPos = new Vector2(box.x + (box.width - textSize.X) * 0.5f,
                 box.y + (box.height - textSize.Y) * 0.5f);
             DrawTextEx(font, text, textPos, fontSize, 0, fontColor);
+        }
+
+        public static void DrawCenteredTextMultiLine(Rectangle box, Font font, string[] texts,
+            float fontSize, Color fontColor)
+        {
+            var textSizes = texts.Select(text => MeasureTextEx(font, text, fontSize, 0)).ToArray();
+            var initHeight = (box.height - fontSize * textSizes.Length) * 0.5f;
+            for (var i = 0; i < textSizes.Length; i++)
+            {
+                var pos = new Vector2(box.x + (box.width - textSizes[i].X) * 0.5f, box.y + initHeight + fontSize * i);
+                DrawTextEx(font, texts[i], pos, fontSize, 0, fontColor);
+            }
+        }
+
+        public static IReadOnlyCollection<T> FastMarquee<T>(float height, float unitHeight, IReadOnlyCollection<T> group,
+            int speed, ref int y, ref int head)
+        {
+            var count = (int)Math.Ceiling(height / unitHeight);
+            if (group.Count >= count)
+            {
+                y -= speed;
+                if (y <= -unitHeight)
+                {
+                    head = (head + 1) % group.Count;
+                    y = 0;
+                }
+            }
+            else y = head = 0;
+
+            var output = group.Skip(head).Take(count + 1).ToList();
+            if (group.Count >= count && output.Count < count + 1)
+                output.AddRange(group.Take(count + 1 - output.Count));
+            return output.ToArray();
+        }
+
+        public static void HorizontalMarquee(float width, Font font, string text, float fontSize, int speed, ref int x)
+        {
+            var textSize = MeasureTextEx(font, text, fontSize, 0);
+            
         }
 
         public static void Dispose()

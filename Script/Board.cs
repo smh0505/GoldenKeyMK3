@@ -34,10 +34,10 @@ namespace GoldenKeyMK3.Script
 
         public Board()
         {
-            _frame = LoadTexture("Resource/board_frame2.png");
+            _frame = LoadTexture("Resource/board_frame3.png");
             _key = LoadTexture("Resource/keys.png");
 
-            GoldenKeys = new() { 2, 5, 9, 11, 15, 18, 22, 24 };
+            GoldenKeys = new List<int> { 2, 5, 9, 11, 15, 18, 22, 24 };
             CurrBoard = new Block[]
             {
                 // Start
@@ -112,11 +112,8 @@ namespace GoldenKeyMK3.Script
                 }
                 else
                 {
-                    var size = MeasureTextEx(Ui.Cafe36, topic, 36, 0);
-                    var pos = new Vector2(block.x + (block.width - size.X) * 0.5f, block.y + (block.height - size.Y) * 0.5f);
-                    
                     BeginScissorMode((int)block.x, (int)block.y, (int)block.width, (int)block.height);
-                    DrawTextEx(Ui.Cafe36, topic, pos, 36, 0, Color.BLACK);
+                    Ui.DrawCenteredTextMultiLine(block, Ui.Cafe36, topic.Split("\n"), 36, Color.BLACK);
                     EndScissorMode();
                 }
             }

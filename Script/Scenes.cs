@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
 
@@ -29,9 +30,9 @@ namespace GoldenKeyMK3.Script
         private int _laps;
         private bool _isClockwise;
         private bool _isTicking;
-        private double _beginTime;
-        private double _currTime;
-        private decimal _timePassed;
+        private readonly Stopwatch _stopwatch;
+        private TimeSpan _timeSpan;
+        private double _timeOffset;
 
         public Scenes()
         {
@@ -54,9 +55,9 @@ namespace GoldenKeyMK3.Script
             _laps = 1;
             _isClockwise = true;
             _isTicking = false;
-            _beginTime = 0;
-            _currTime = 0;
-            _timePassed = 0;
+            _stopwatch = new Stopwatch();
+            _timeSpan = TimeSpan.Zero;
+            _timeOffset = 0;
         }
 
         public void Draw(bool shutdownRequest)
@@ -122,7 +123,7 @@ namespace GoldenKeyMK3.Script
 
         private void Timer(bool shutdownRequest)
         {
-            if (!shutdownRequest && _isTicking) _timePassed = (decimal)(GetTime() - _beginTime + _currTime);
+            if (!shutdownRequest && _isTicking) _timeSpan = _stopwatch.Elapsed + TimeSpan.FromSeconds(_timeOffset);
             
             if (!shutdownRequest && Ui.DrawButton(new Rectangle(966, 192, 30, 50), Color.GOLD, 0.7f))
                 _laps = Math.Clamp(--_laps, 1, 3);
@@ -131,18 +132,16 @@ namespace GoldenKeyMK3.Script
             if (!shutdownRequest && Ui.DrawButton(new Rectangle(1080, 192, 120, 50), Color.LIME, 0.7f))
                 _isClockwise = !_isClockwise;
             if (!shutdownRequest && Ui.DrawButton(new Rectangle(1202, 192, 40, 50), Color.YELLOW, 0.7f))
-                _beginTime -= 60;
-            if (!shutdownRequest && Ui.DrawButton(new Rectangle(1244, 192, 180, 50), _isTicking ? Color.GREEN : Color.RED, 0.7f))
+                _timeOffset += 60.0f;
+            if (!shutdownRequest && Ui.DrawButton(new Rectangle(1244, 192, 180, 50), 
+                    _isTicking ? Color.GREEN : Color.RED, 0.7f))
             {
                 _isTicking = !_isTicking;
-                if (_isTicking) _beginTime = GetTime();
-                else _currTime = GetTime() - _beginTime;
+                if (_isTicking) _stopwatch.Start();
+                else _stopwatch.Stop();
             }
             if (!shutdownRequest && Ui.DrawButton(new Rectangle(1426, 192, 40, 50), Color.YELLOW, 0.7f))
-            {
-                _beginTime += 60;
-                if (_beginTime > GetTime()) _beginTime = GetTime();
-            }
+                _timeOffset -= Math.Min(60, _timeSpan.TotalSeconds);
 
             DrawTexture(_timer, 966, 192, Color.BLACK);
             Ui.DrawCenteredText(new Rectangle(996, 192, 50, 50), Ui.Galmuri48, 
@@ -150,7 +149,7 @@ namespace GoldenKeyMK3.Script
             Ui.DrawCenteredText(new Rectangle(1080, 192, 120, 50), Ui.Galmuri48, 
                 _isClockwise ? "시계" : "반시계", 48, Color.BLACK);
             Ui.DrawCenteredText(new Rectangle(1204, 192, 260, 50), Ui.Galmuri48, 
-                $"{_timePassed / 3600:00}:{(_timePassed / 60) % 60:00}:{_timePassed % 60:00}", 48, Color.BLACK);
+                $"{_timeSpan.Hours:00}:{_timeSpan.Minutes:00}:{_timeSpan.Seconds:00}", 48, Color.BLACK);
         }
 
         // Controls

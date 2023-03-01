@@ -38,6 +38,20 @@ namespace GoldenKeyMK3.Script
         }
     }
 
+    public struct PollResponse
+    {
+        public string Name { get; }
+        public string Song { get; }
+        public bool IsSuccessful { get; }
+
+        public PollResponse(string name, string song, bool isSuccessful)
+        {
+            Name = name;
+            Song = song;
+            IsSuccessful = isSuccessful;
+        }
+    }
+
     public class Chat
     {
         private readonly ManualResetEvent _exitEvent = new (false);
@@ -49,16 +63,18 @@ namespace GoldenKeyMK3.Script
         private ImmutableList<PollRequest> _requests = ImmutableList<PollRequest>.Empty;
         private ImmutableList<PollRequest> _usedList = ImmutableList<PollRequest>.Empty;
         private ImmutableList<PollRequest> _graveyard = ImmutableList<PollRequest>.Empty;
+        private ImmutableList<PollResponse> _sequence = ImmutableList<PollResponse>.Empty;
 
         public PollState State;
         private int _idx = -1;
         private bool _menu;
         private readonly int[] _y;
         private readonly int[] _head;
+        
         private PollRequest _current;
         private List<PollRequest> _temp;
-        private int _countUp;
         private double _timestamp;
+        private readonly Random _rnd;
 
         private readonly Texture2D _menuPopup;
         private readonly Texture2D _menuButton;
@@ -77,8 +93,8 @@ namespace GoldenKeyMK3.Script
             _head = new []{ 0, 0 };
             _current = new PollRequest();
             _temp = new List<PollRequest>();
-            _countUp = 0;
             _timestamp = 0;
+            _rnd = new Random();
 
             _menuPopup = LoadTexture("Resource/menu.png");
             _menuButton = LoadTexture("Resource/menuButton.png");
@@ -110,13 +126,8 @@ namespace GoldenKeyMK3.Script
             _timestamp = GetTime();
             DrawLists();
 
-            if (State == PollState.Active)
-            {
-                _countUp++;
-                _current = _temp[new Random().Next(_temp.Count)];
-                if (_countUp == 150) State = PollState.Result;
-            }
-            
+            if (State == PollState.Active) _current = _temp[_rnd.Next(_temp.Count)];
+
             if (!shutdownRequest && FindAllSongs(_idx).ToList().Count > 0) DrawPollButton();
             if (!shutdownRequest && State == PollState.Idle) DrawButtons();
             if (!shutdownRequest && _menu) DrawMenu();
@@ -148,8 +159,8 @@ namespace GoldenKeyMK3.Script
                 DrawRectangle(332, 192, 622, 62, block.BoxColor);
                 DrawTextEx(Ui.Galmuri48, text, new Vector2(344, 199), 48, 0, Color.BLACK);
 
-                var group = Marquee(406, 30, FindAllSongs(_idx).ToList(), ref _y[0], ref _head[0]).ToArray();
-                BeginScissorMode(332, 254, 622, 406);
+                var group = Ui.FastMarquee(286, 30, FindAllSongs(_idx).ToList(), 2, ref _y[0], ref _head[0]).ToArray();
+                BeginScissorMode(332, 254, 622, 286);
                 for (var i = 0; i < group.Length; i++)
                 {
                     var pos = new Vector2(344, 260 + _y[0] + 30 * i);
@@ -159,12 +170,22 @@ namespace GoldenKeyMK3.Script
             }
             
             // Used List
-            var usedList = Marquee(406, 30, _usedList, ref _y[1], ref _head[1]).ToArray();
-            BeginScissorMode(966, 254, 622, 406);
+            var usedList = Ui.FastMarquee(288, 30, _usedList, 2, ref _y[1], ref _head[1]).ToArray();
+            BeginScissorMode(332, 540, 622, 288);
             for (var i = 0; i < usedList.Length; i++)
             {
-                var pos = new Vector2(978, 260 + _y[1] + 30 * i);
+                var pos = new Vector2(340, 546 + _y[1] + 30 * i);
                 DrawTextEx(Ui.Galmuri24, $"{usedList[i].Name} => {usedList[i].Song}", pos, 24, 0, Color.WHITE);
+            }
+            EndScissorMode();
+
+            var responses = _sequence.TakeLast(10).ToArray();
+            BeginScissorMode(966, 254, 622, 240);
+            for (var i = 0; i < responses.Length; i++)
+            {
+                var pos = new Vector2(966, 254 + 24 * i);
+                DrawRectangle((int)pos.X, (int)pos.Y, 622, 24, responses[i].IsSuccessful ? Color.BLUE : Color.RED);
+                DrawTextEx(Ui.Galmuri24, $"{responses[i].Name} => {responses[i].Song}", pos, 24, 0, Color.WHITE);
             }
             EndScissorMode();
         }
@@ -172,7 +193,7 @@ namespace GoldenKeyMK3.Script
         private void DrawResult(PollRequest request)
         {
             DrawTexture(_result, 332, 254, Color.WHITE);
-            BeginScissorMode(332, 254, 622, 406);
+            BeginScissorMode(332, 254, 622, 286);
             DrawTextEx(Ui.Galmuri48, request.Song, new Vector2(352, 314), 48, 0, Color.YELLOW);
             DrawTextEx(Ui.Galmuri24, request.Name, new Vector2(402, 380), 24, 0, Color.WHITE);
             EndScissorMode();
@@ -229,24 +250,23 @@ namespace GoldenKeyMK3.Script
 
         private void DrawPollButton()
         {
+            var button1 = new Rectangle(332, 840, 160, 48);
+            
             switch (State)
             {
                 case PollState.Idle:
-                    var button = new Rectangle(332, 840, 160, 48);
-                    if (Ui.DrawButton(button, Color.GREEN, 0.7f))
+                    if (Ui.DrawButton(button1, Color.GREEN, 0.7f))
                     {
                         State = PollState.Active;
                         _temp = FindAllSongs(_idx).ToList();
                     }
-                    Ui.DrawCenteredText(button, Ui.Galmuri36, "추첨", 36, Color.BLACK);
+                    Ui.DrawCenteredText(button1, Ui.Galmuri36, "추첨", 36, Color.BLACK);
                     break;
                 case PollState.Active:
-                    _countUp++;
-                    _current = _temp[new Random().Next(_temp.Count)];
-                    if (_countUp == 150) State = PollState.Result;
+                    if (Ui.DrawButton(button1, Color.GREEN, 0.7f)) State = PollState.Result;
+                    Ui.DrawCenteredText(button1, Ui.Galmuri36, "멈추기", 36, Color.BLACK);
                     break;
                 case PollState.Result:
-                    var button1 = new Rectangle(332, 840, 78, 48);
                     if (Ui.DrawButton(button1, Color.GREEN, 0.7f))
                     {
                         State = PollState.Idle;
@@ -254,20 +274,24 @@ namespace GoldenKeyMK3.Script
                         _requests = _requests.RemoveAll(x => x.Name == _current.Name);
                         _graveyard = _graveyard.RemoveAll(x => x.Name == _current.Name);
                         _current = new PollRequest();
-                        _countUp = 0;
                     }
-                    Ui.DrawCenteredText(button1, Ui.Galmuri36, "다음", 36, Color.BLACK);
+                    Ui.DrawCenteredText(button1, Ui.Galmuri36, "결정", 36, Color.BLACK);
 
-                    var button2 = new Rectangle(414, 840, 78, 48);
+                    var button2 = new Rectangle(500, 840, 160, 48);
                     if (Ui.DrawButton(button2, Color.GREEN, 0.7f))
                     {
-                        _requests = _requests.Remove(_current);
-                        _temp = FindAllSongs(_idx).ToList();
-                        State = _temp.Any() ? PollState.Idle : PollState.Active;
+                        State = _temp.Any() ? PollState.Active : PollState.Idle;
                         _current = new PollRequest();
-                        _countUp = 0;
                     }
-                    Ui.DrawCenteredText(button2, Ui.Galmuri36, "스킵", 36, Color.BLACK);
+                    Ui.DrawCenteredText(button2, Ui.Galmuri36, "재추첨", 36, Color.BLACK);
+                    
+                    var button3 = new Rectangle(668, 840, 160, 48);
+                    if (Ui.DrawButton(button3, Color.GREEN, 0.7f))
+                    {
+                        State = PollState.Idle;
+                        _current = new PollRequest();
+                    }
+                    Ui.DrawCenteredText(button3, Ui.Galmuri36, "추첨 취소", 36, Color.BLACK);
                     break;
             }
         }
@@ -279,12 +303,17 @@ namespace GoldenKeyMK3.Script
             var re = new Regex(@"^(?:@(?<tags>(?:.+?=.*?)(?:;.+?=.*?)*) )?(?::(?<source>[^ ]+?) )?(?<command>[0-9]{3}|[a-zA-Z]+)(?: (?<params>.+?))?(?: :(?<content>.*))?$");
             var objects = re.Match(msg).Groups;
 
-            if (!IsValid(objects["content"].ToString(), out var topic, out var song)) return;
-            
+            var cp1 = IsValid(objects["content"].ToString(), out var topic, out var song);
+
             var name = GetUsername(objects["tags"].ToString(), objects["source"].ToString());
-            if (_usedList.Select(x => x.Name).Contains(name)) return;
-            if (GetTime() - _requests.FindLast(x => x.Name == name).Timestamp < 60) return;
-            
+            var cp2 = !_usedList.Select(x => x.Name).Contains(name);
+
+            var cp3 = !(GetTime() - _requests.FindLast(x => x.Name == name).Timestamp < 30);
+
+            var isSuccessful = cp1 && cp2 && cp3;
+            _sequence = _sequence.Add(new PollResponse(name, song, isSuccessful));
+
+            if (!isSuccessful) return;
             _requests = _requests.Add(new PollRequest(name, topic, song, _timestamp));
             if (_requests.Count(x => x.Name == name) + _graveyard.Count(x => x.Name == name) <= 3) return;
             if (_graveyard.FindLastIndex(x => x.Name == name) != -1)
@@ -294,32 +323,16 @@ namespace GoldenKeyMK3.Script
 
         private bool IsValid(string text, out string topic, out string song)
         {
-            var content = text.Split(' ', 3);
-            
-            if (content.Length < 3)
-            {
-                topic = string.Empty;
-                song = string.Empty;
-                return false;
-            }
-            
-            if (!int.TryParse(content[1], out var idx))
-            {
-                topic = string.Empty;
-                song = string.Empty;
-                return false;
-            }
-            
-            if (idx is < 1 or > 24)
-            {
-                topic = string.Empty;
-                song = string.Empty;
-                return false;
-            }
+            var content = text.Split(" ", 3);
 
-            topic = _board.CurrBoard[idx >= 13 ? idx + 1 : idx].Topic;
+            topic = song = string.Empty;
+            if (content.Length < 3) return false;
+            if (!int.TryParse(content[1], out var idx)) return false;
+            if (idx is <= 0 or 13 or > 25) return false;
+
+            topic = _board.CurrBoard[idx].Topic;
             song = content[2];
-            return !_board.GoldenKeys.Contains(idx >= 13 ? idx + 1 : idx);
+            return !_board.GoldenKeys.Contains(idx);
         }
 
         private static string GetUsername(string tags, string source)
@@ -351,32 +364,18 @@ namespace GoldenKeyMK3.Script
                 default:
                     if (_menu) break;
                     if (_board.GoldenKeys.Contains(idx))
-                        _scenes.CurrScene = _scenes.CurrScene == Scene.Board ? Scene.Main : Scene.Board;
+                    {
+                        _scenes.CurrScene = _scenes.CurrScene switch
+                        {
+                            Scene.Board => Scene.Main,
+                            Scene.Main => Scene.Board,
+                            _ => _scenes.CurrScene
+                        };
+                        _idx = -1;
+                    }
                     else _idx = idx;
                     break;
             }
-        }
-
-        private static IReadOnlyCollection<T> Marquee<T>(float height, float unitHeight, IReadOnlyCollection<T> group,
-            ref int y, ref int head)
-        {
-            var count = (int)Math.Ceiling(height / unitHeight);
-
-            if (group.Count >= count)
-            {
-                y -= 2;
-                if (y <= -30)
-                {
-                    head = (head + 1) % group.Count;
-                    y = 0;
-                }
-            }
-            else y = head = 0;
-
-            var output = group.Skip(head).Take(count + 1).ToList();
-            if (group.Count >= count && output.Count < count + 1)
-                output.AddRange(group.Take(count + 1 - output.Count));
-            return output.ToArray();
         }
     }
 }

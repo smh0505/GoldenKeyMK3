@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Numerics;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
@@ -12,187 +12,192 @@ namespace GoldenKeyMK3.Script
         Stopping,
         Result
     }
-
-    public struct WheelPanel
+    
+    public class Wheel : IDisposable
     {
-        public string Name;
-        public int Count;
-        public Color Color;
-
-        public WheelPanel(string name, int count, Color color)
-        {
-            Name = name;
-            Count = count;
-            Color = color;
-        }
-    }
-
-    public class Wheel
-    {
-        private readonly Chat _chat;
-        
         public ImmutableList<string> WaitList;
-        public List<WheelPanel> Options;
-        
-        private int Sum => Options.Sum(option => option.Count);
-        private static WheelState _state = WheelState.Idle;
-        private static float _startAngle;
-        private static float _diffAngle = 50.0f;
-        private static readonly Random Rnd = new ();
-        
-        private static readonly Dictionary<WheelState, string> ButtonPool = new ()
-        {
-            {WheelState.Idle, "돌리기"},
-            {WheelState.Spinning, "멈추기"},
-            {WheelState.Stopping, string.Empty},
-            {WheelState.Result, "다음"}
-        };
+        public List<Panel> Panels;
 
+        private WheelState _state;
+        private float _startAngle;
+        private float _theta;
+        private readonly float _radius;
+        private readonly Vector2 _center;
+
+        private readonly Dictionary<WheelState, string> _buttonText;
         private readonly Texture2D _result;
+        private bool _spinHover;
 
-        public Wheel(Chat chat)
+        public Wheel()
         {
-            _chat = chat;
-            
             WaitList = ImmutableList<string>.Empty;
-            Options = new List<WheelPanel>();
+            Panels = new List<Panel>();
+
+            _state = WheelState.Idle;
+            _startAngle = 0;
+            _theta = 3000.0f;
+            _radius = 250.0f;
+            _center = new Vector2(680, 540);
+
+            _buttonText = new Dictionary<WheelState, string>()
+            {
+                { WheelState.Idle, "돌리기" },
+                { WheelState.Spinning, "멈추기" },
+                { WheelState.Stopping, string.Empty },
+                { WheelState.Result, "다음" },
+            };
 
             _result = LoadTexture("Resource/next_key.png");
+            _spinHover = false;
+        }
+        
+        // Public Methods
+
+        public void Draw()
+        {
+            if (Sum > 0)
+            {
+                DrawSectors();
+                DrawLabels();
+
+                Vector2[] vtx = { new(670, 280), new(680, 300), new(690, 280) };
+                DrawTriangle(vtx[0], vtx[1], vtx[2], Color.BLACK);
+            }
+            if (_state == WheelState.Result) DrawResult();
+
+            if (_state != WheelState.Stopping)
+            {
+                var spinColor = _spinHover ? Color.RED : Fade(Color.RED, 0.7f);
+                DrawCircle(400, 820, 60.0f, spinColor);
+                Ui.DrawTextCentered(new Rectangle(340, 760, 120, 120), Ui.Galmuri36, _buttonText[_state], 36, Color.BLACK);
+            }
         }
 
-        public void UpdateWheel(bool shutdownRequest)
+        public void Control(bool shutdownRequest)
         {
-            if (!shutdownRequest && _chat.State == PollState.Idle) _chat.DrawButtons();
-            if (Sum > 0) DrawWheel();
+            Update();
             
-            switch (_state)
+            if (Ui.IsHovering(new Vector2(400, 820), 60.0f, !shutdownRequest))
             {
-                case WheelState.Idle:
-                    _diffAngle = 50.0f;
-                    AddOption();
-                    break;
-                case WheelState.Spinning:
-                    _startAngle += _diffAngle;
-                    if (_startAngle >= 360.0f) _startAngle -= 360.0f;
-                    break;
-                case WheelState.Stopping:
-                    _startAngle += _diffAngle;
-                    if (_startAngle >= 360.0f) _startAngle -= 360.0f;
-                    _diffAngle -= 1 / MathF.PI;
-                    if (_diffAngle <= 0.0f) _state = WheelState.Result;
-                    break;
-                case WheelState.Result:
-                    DrawResult();
-                    break;
+                _spinHover = true;
+                if (_state != WheelState.Stopping && IsMouseButtonPressed(0))
+                {
+                    _state = (WheelState)((int)(_state + 1) % 4);
+                    if (_state == WheelState.Idle) RemovePanel(Result());
+                }
             }
-
-            if (_state == WheelState.Stopping || Sum == 0 || shutdownRequest) return;
-            if (Ui.DrawButton(new Vector2(400, 820), 60.0f, Color.GREEN, 0.7f))
-                OnClick();
-            Ui.DrawCenteredText(new Rectangle(340, 760, 120, 120), Ui.Galmuri36, ButtonPool[_state], 36, Color.BLACK);
-            if (IsKeyPressed(KeyboardKey.KEY_SPACE)) OnClick();
+            else _spinHover = false;
         }
 
         public void Dispose()
         {
             UnloadTexture(_result);
+            GC.SuppressFinalize(this);
         }
+        
+        // Private Methods
 
-        // UIs
+        private int Sum => Panels.Sum(x => x.Count);
+        private float Unit => 360.0f / Sum;
 
-        private void DrawWheel()
+        private void Update()
         {
-            var currAngle = _startAngle;
-            var unitAngle = 360.0f / Sum;
-            var center = new Vector2(680, 540);
-            const float radius = 250.0f;
-
-            // Circular sectors
-            foreach (var option in Options)
+            switch (_state)
             {
-                DrawCircleSector(center, radius, currAngle, currAngle + unitAngle * option.Count, 0, option.Color);
-                currAngle += unitAngle * option.Count;
+                case WheelState.Idle:
+                    _theta = 3000.0f;
+                    AddPanel();
+                    break;
+                case WheelState.Spinning:
+                case WheelState.Stopping:
+                    _startAngle += _theta * GetFrameTime();
+                    if (_startAngle >= 360.0f) _startAngle -= 360.0f;
+                    if (_state == WheelState.Stopping)
+                    {
+                        _theta -= 60 / MathF.PI;
+                        if (_theta <= 0.0f) _state = WheelState.Result;
+                    }
+                    break;
             }
-
-            // Labels
-            currAngle = _startAngle;
-            foreach (var option in Options)
-            {
-                var size = MeasureTextEx(Ui.Galmuri24, option.Name, 24, 0);
-                var origin = new Vector2((radius + size.X) / 2, size.Y / 2);
-                var theta = -90.0f - (currAngle + unitAngle * option.Count / 2);
-                DrawTextPro(Ui.Galmuri24, option.Name, center, origin, theta, 24, 0, Color.BLACK);
-                currAngle += unitAngle * option.Count;
-            }
-
-            // Triangular arrow
-            Vector2[] vtx = { new (670, 280), new (680, 300), new (690, 280) };
-            DrawTriangle(vtx[0], vtx[1], vtx[2], Color.BLACK);
         }
 
-        private void DrawResult()
-        { 
-            DrawTexture(_result, 330, 190, Color.WHITE);
-            var namePos = new Vector2(354, 374);
-            BeginScissorMode(330, 190, 700, 700);
-            DrawTextEx(Ui.Galmuri60, Result().Name, namePos, 60, 0, Color.YELLOW);
-            EndScissorMode();
-        }
-
-        // Controls
-
-        private void AddOption()
+        private void AddPanel()
         {
-            var optionList = WaitList.ToList();
+            var rnd = new Random();
+            var panels = WaitList.ToArray();
             WaitList = WaitList.Clear();
 
-            foreach (var option in optionList)
+            foreach (var x in panels)
             {
-                var id = Options.FindIndex(x => x.Name == option);
+                var id = Panels.FindIndex(y => y.Name == x);
                 if (id != -1)
-                {
-                    var newOption = new WheelPanel(Options[id].Name, Options[id].Count + 1, Options[id].Color);
-                    Options.RemoveAt(id);
-                    Options.Insert(id, newOption);
-                }
-                else
-                {
-                    var newOption = new WheelPanel(option, 1, ColorFromHSV(Rnd.NextSingle() * 360.0f, 0.5f, 1));
-                    Options.Add(newOption);
-                }
+                    Panels[id] = new Panel(Panels[id].Name, Panels[id].Count + 1, Panels[id].Color);
+                else Panels.Add(new Panel(x, 1, ColorFromHSV(rnd.NextSingle() * 360.0f, 0.5f, 1)));
             }
         }
 
-        private void RemoveOption(WheelPanel option)
+        private void RemovePanel(Panel panel)
         {
-            var id = Options.IndexOf(option);
-            Options.Remove(option);
-            if (option.Count <= 1) return;
-            var newOption = new WheelPanel(option.Name, option.Count - 1, option.Color);
-            Options.Insert(id, newOption);
+            var id = Panels.IndexOf(panel);
+            Panels[id] = new Panel(panel.Name, panel.Count - 1, panel.Color);
+            if (Panels[id].Count == 0) Panels.Remove(Panels[id]);
         }
 
-        private WheelPanel Result()
+        private Panel Result()
         {
-            if (Options.Count <= 0) return new WheelPanel(string.Empty, 1, Color.WHITE);
+            if (Sum == 0) return new Panel(string.Empty, 1, Color.WHITE);
+
             var theta = 540.0f - _startAngle;
-            var id = (int)Math.Floor((theta >= 360.0f ? theta - 360 : theta) / (360.0f / Sum));
+            var id = (int)Math.Floor((theta >= 360.0f ? theta - 360 : theta) / Unit);
 
-            var target = Options[0];
+            Panel target;
+            var i = 0;
             var idCount = 0;
-            foreach (var option in Options)
+            
+            do
             {
-                target = option;
-                idCount += option.Count;
-                if (idCount > id) break;
-            }
+                i++;
+                target = Panels[i];
+                idCount += Panels[i].Count;
+            } while (idCount <= id);
+
             return target;
         }
 
-        private void OnClick()
+        // UI
+        
+        private void DrawSectors()
         {
-            _state = (WheelState)(((int)_state + 1) % 4);
-            if (_state == WheelState.Idle) RemoveOption(Result());
+            var current = _startAngle;
+            
+            foreach (var x in Panels)
+            {
+                DrawCircleSector(_center, _radius, current, current + Unit * x.Count, 0, x.Color);
+                current += Unit * x.Count;
+            }
+        }
+
+        private void DrawLabels()
+        {
+            var current = _startAngle;
+
+            foreach (var x in Panels)
+            {
+                var size = MeasureTextEx(Ui.Galmuri24, x.Name, 24, 0);
+                var origin = new Vector2((_radius + size.X) / 2, size.Y / 2);
+                var theta = -90.0f - (current + Unit * x.Count / 2);
+                DrawTextPro(Ui.Galmuri24, x.Name, _center, origin, theta, 24, 0, Color.BLACK);
+                current += Unit * x.Count;
+            }
+        }
+
+        private void DrawResult()
+        {
+            DrawTexture(_result, 330, 190, Color.WHITE);
+            var pos = new Vector2(354, 374);
+            BeginScissorMode(330, 190, 700, 700);
+            DrawTextEx(Ui.Galmuri60, Result().Name, pos, 60, 0, Color.YELLOW);
+            EndScissorMode();
         }
     }
 }

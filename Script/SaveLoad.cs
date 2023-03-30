@@ -1,4 +1,4 @@
-using static Raylib_cs.Raylib;
+﻿using Raylib_cs;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -6,83 +6,86 @@ namespace GoldenKeyMK3.Script
 {
     public struct Setting
     {
-        public string Key;
-        public List<string> Values;
-    }
+        public string Key { get; set; }
+        public List<string> Values { get; set; }
 
+        public Setting()
+        {
+            Key = string.Empty;
+            Values = new List<string>();
+        }
+
+        public Setting(string key, List<string> values)
+        {
+            Key = key;
+            Values = values;
+        }
+    }
+    
+    public struct Panel
+    {
+        public string Name { get; set; }
+        public int Count { get; set; }
+        public Color Color { get; set; }
+
+        public Panel(string name, int count, Color color)
+        {
+            Name = name;
+            Count = count;
+            Color = color;
+        }
+    }
+    
     public static class SaveLoad
     {
-        public static List<WheelPanel> DefaultOptions = new ();
-        private static Setting _setting;
-
-        // Loading
-
-        public static void LoadSetting(Login login)
+        public static Setting LoadSetting()
         {
-            // Read Default File
+            // Read default.yml
             var r = new StreamReader("default.yml");
             var data = r.ReadToEnd();
             r.Close();
-
-            // Deserialize Setting
+            
+            // Deserialize
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
-            _setting = deserializer.Deserialize<Setting>(data);
+            var setting = deserializer.Deserialize<Setting>(data);
 
-            // Insert Setting
-            login.Input = string.IsNullOrEmpty(_setting.Key) ? string.Empty : _setting.Key;
-            DefaultOptions = _setting.Values == null ? new List<WheelPanel>() : LoadPanels();
+            setting.Values ??= new List<string>();
+            return setting;
         }
 
-        public static List<WheelPanel> LoadLog(string filename)
+        public static List<Panel> LoadPanels(string filename)
         {
+            // Read log file
             var r = new StreamReader(filename);
             var data = r.ReadToEnd();
             r.Close();
-
+            
+            // Deserialize
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
-            return deserializer.Deserialize<List<WheelPanel>>(data);
-        }
+            var panels = deserializer.Deserialize<List<Panel>>(data);
 
-        private static List<WheelPanel> LoadPanels()
-        {
-            var panels = new List<WheelPanel>();
-            var rnd = new Random();
-
-            foreach (var option in _setting.Values)
-            {
-                var id = panels.FindIndex(x => x.Name == option);
-                if (id != -1)
-                {
-                    var newOption = new WheelPanel(panels[id].Name, panels[id].Count + 1, panels[id].Color);
-                    panels.RemoveAt(id);
-                    panels.Insert(id, newOption);
-                }
-                else
-                {
-                    var newOption = new WheelPanel(option, 1, ColorFromHSV(rnd.NextSingle() * 360, 0.5f, 1));
-                    panels.Add(newOption);
-                }
-            }
             return panels;
         }
 
-        public static Dictionary<string, string[]> LoadTopics(string filename)
+        public static Dictionary<string, string[]> LoadThemes()
         {
-            var r = new StreamReader(filename);
+            // Read log file
+            var r = new StreamReader("board.yml");
             var data = r.ReadToEnd();
             r.Close();
-
+            
+            // Deserialize
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
-            return deserializer.Deserialize<Dictionary<string, string[]>>(data);
-        }
+            var themes = deserializer.Deserialize<Dictionary<string, string[]>>(data);
 
-        // Saving
+            return themes;
+        }
 
         public static void SaveLog(Wheel wheel)
         {
@@ -95,7 +98,7 @@ namespace GoldenKeyMK3.Script
             var serializer = new SerializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
-            var optionList = serializer.Serialize(wheel.Options);
+            var optionList = serializer.Serialize(wheel.Panels);
 
             // Write Log File
             using var file = File.Create(filename);

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
 
@@ -6,170 +6,261 @@ namespace GoldenKeyMK3.Script
 {
     public enum Scene
     {
-        Intro = 0,  // Intro.cs
-        Login,      // Login.cs
-        Load,       // LoadScene.cs
-        Main,       // Wheel.cs
-        Board       // Chat.cs
+        Intro = 0,
+        Login,
+        Load,
+        Wheel,
+        Poll,
+        Raffle,
+        Dice
     }
-
-    public class Scenes
+    
+    public class Scenes : IDisposable
     {
-        public Scene CurrScene;
-        public readonly Close CloseScene;
-        private readonly Wheel _wheel;
+        private Scene _current;
+        private readonly Close _close;
+        private readonly Intro _intro;
         private readonly Login _login;
-        private readonly LoadScene _load;
-        private readonly Chat _chat;
+        private readonly Log _log;
+        private readonly Wheel _wheel;
+        private readonly Donation _donation;
         private readonly Board _board;
-        
-        private readonly Texture2D _minimizeIcon;
-        private readonly Texture2D _closeIcon;
-        private readonly Texture2D _timer;
+        private readonly Poll _poll;
+        private readonly Chat _chat;
 
-        private int _laps;
+        private readonly Dice _dice;
+
+        private Setting _setting;
+        private bool _isTransparent;
+
         private bool _isClockwise;
         private bool _isTicking;
+        private int _idx;
+        private readonly string[] _laps;
         private readonly Stopwatch _stopwatch;
         private TimeSpan _timeSpan;
-        private double _timeOffset;
-
+        private double _offset;
+        private readonly Texture2D _timer;
+        
         public Scenes()
         {
-            // Init itself
-            CurrScene = Scene.Intro;
-
-            _minimizeIcon = LoadTexture("Resource/minus.png");
-            _closeIcon = LoadTexture("Resource/power.png");
-            _timer = LoadTexture("Resource/timerButton.png");
-            
-            // Init scenes
+            _current = Scene.Intro;
+            _close = new Close();
+            _intro = new Intro();
+            _login = new Login();
+            _log = new Log();
+            _wheel = new Wheel();
+            _donation = new Donation(_wheel);
             _board = new Board();
-            _chat = new Chat(_board, this);
-            _wheel = new Wheel(_chat);
-            _login = new Login(_wheel);
-            _load = new LoadScene(_wheel);
-            CloseScene = new Close();
+            _poll = new Poll(_board);
+            _chat = new Chat(_poll, _board);
 
-            if (File.Exists("default.yml")) SaveLoad.LoadSetting(_login);
-            _laps = 1;
+            _dice = new Dice();
+
+            _setting = new Setting();
+            _isTransparent = false;
+
             _isClockwise = true;
             _isTicking = false;
+            _idx = 0;
+            _laps = new[] { "1", "2", "3", "B" };
             _stopwatch = new Stopwatch();
             _timeSpan = TimeSpan.Zero;
-            _timeOffset = 0;
+            _offset = 0;
+            _timer = LoadTexture("Resource/timerButton.png");
         }
 
+        // Public Methods
+        
         public void Draw(bool shutdownRequest)
         {
-            switch (CurrScene)
+            var backColor = _isTransparent ? Color.GREEN : Color.LIGHTGRAY;
+            ClearBackground(backColor);
+            
+            if (_current > Scene.Load)
+            {
+                _board.Draw();
+                DrawTimer(shutdownRequest);
+            }
+
+            switch (_current)
             {
                 case Scene.Intro:
-                    if (Intro.Draw()) CurrScene = Scene.Login;
+                    if (_intro.Draw())
+                    {
+                        LoadFiles();
+                        _current++;
+                    }
                     break;
                 case Scene.Login:
-                    if (_login.Draw(shutdownRequest)) PostLogin();
+                    _login.Draw();
+                    if (!string.IsNullOrEmpty(_login.Payload))
+                    {
+                        if (Directory.Exists("Logs") && Directory.GetFiles("Logs").Any())
+                            _current = Scene.Load;
+                        else
+                        {
+                            _current = Scene.Wheel;
+                            _wheel.Panels = _log.DefaultSet;
+                            _chat.Connect();
+                            _donation.Connect(_login.Payload);
+                        }
+                    }
                     break;
                 case Scene.Load:
-                    if (_load.Draw(shutdownRequest)) PrepareGame();
+                    _log.Draw(shutdownRequest);
+                    if (_log.Panels.Any())
+                    {
+                        _wheel.Panels = _log.Panels;
+                        _current = Scene.Wheel;
+                        _chat.Connect();
+                        _donation.Connect(_login.Payload);
+                    }
                     break;
-                case Scene.Main:
-                    _board.Draw();
-                    Timer(shutdownRequest);
-                    _wheel.UpdateWheel(shutdownRequest);
+                case Scene.Wheel:
+                    _wheel.Draw();
                     break;
-                case Scene.Board:
-                    _board.Draw();
-                    Timer(shutdownRequest);
-                    _chat.Draw(shutdownRequest);
+                case Scene.Poll:
+                    _poll.Draw(shutdownRequest);
+                    break;
+                case Scene.Dice:
+                    _dice.Draw();
                     break;
             }
+            
+            if (shutdownRequest) _close.Draw();
+        }
+
+        public void Control(ref bool shutdownRequest, out bool shutdownResponse)
+        {
+            if (IsKeyDown(KeyboardKey.KEY_LEFT_CONTROL)) switch ((KeyboardKey)GetKeyPressed())
+            {
+                case KeyboardKey.KEY_TAB:
+                    SetWindowMonitor((GetCurrentMonitor() + 1) % GetMonitorCount());
+                    SetTargetFPS(GetMonitorRefreshRate(GetCurrentMonitor()));
+                    break;
+                case KeyboardKey.KEY_P:
+                    _isTransparent = !_isTransparent;
+                    break;
+            }
+
+            if (!shutdownRequest && _current > Scene.Load)
+            {
+                ControlTimer(shutdownRequest);
+                switch ((KeyboardKey)GetKeyPressed())
+                {
+                    case KeyboardKey.KEY_F1:
+                        _current = Scene.Wheel;
+                        break;
+                    case KeyboardKey.KEY_F2:
+                        _current = Scene.Poll;
+                        break;
+                    case KeyboardKey.KEY_F4:
+                        _current = Scene.Dice;
+                        break;
+                    case KeyboardKey.KEY_F10:
+                        _board.Shuffle(_isClockwise);
+                        break;
+                    case KeyboardKey.KEY_F11:
+                        _board.AddKey(_isClockwise);
+                        break;
+                    case KeyboardKey.KEY_F12:
+                        _board.Restore();
+                        break;
+                }
+            }
+
+            if (!shutdownRequest) switch (_current)
+            {
+                case Scene.Login:
+                    _login.Control(shutdownRequest);
+                    break;
+                case Scene.Load:
+                    _log.Control(shutdownRequest);
+                    break;
+                case Scene.Wheel:
+                    _wheel.Control(shutdownRequest);
+                    break;
+                case Scene.Poll:
+                    _poll.Control(shutdownRequest);
+                    break;
+            }
+            
+            _close.Control(ref shutdownRequest, out shutdownResponse);
         }
 
         public void Dispose()
         {
-            UnloadTexture(_minimizeIcon);
-            UnloadTexture(_closeIcon);
-            UnloadTexture(_timer);
-            
-            if (_wheel.Options.Any()) SaveLoad.SaveLog(_wheel);
-
+            _intro.Dispose();
+            _close.Dispose();
             _login.Dispose();
-            _load.Dispose();
-            CloseScene.Dispose();
-            _chat.Dispose();
+            _log.Dispose();
             _wheel.Dispose();
+            _donation.Dispose();
             _board.Dispose();
-            Intro.Dispose();
+            _poll.Dispose();
+            _chat.Dispose();
             Ui.Dispose();
+            SaveLoad.SaveLog(_wheel);
+            GC.SuppressFinalize(this);
+        }
+        
+        // Private Methods
+
+        private void LoadFiles()
+        {
+            if (File.Exists("default.yml")) _setting = SaveLoad.LoadSetting();
+            if (!string.IsNullOrEmpty(_setting.Key)) _login.ReadKey(_setting.Key);
+            if (_setting.Values != null && _setting.Values.Any()) _log.Generate(_setting.Values);
         }
 
-        // UIs
-
-        public bool Buttons()
+        private void DrawTimer(bool shutdownRequest)
         {
-            var minimizeButton = (int)CurrScene > 2 ? new Rectangle(1476, 192, 50, 50)
-                : new Rectangle(1796, 12, 50, 50);
-            var closeButton = (int)CurrScene > 2 ? new Rectangle(1538, 192, 50, 50)
-                : new Rectangle(1858, 12, 50, 50);
+            DrawRectangle(1080, 186, 510, 62, Color.WHITE);
             
-            if (Ui.DrawButton(minimizeButton, Color.GREEN, 0.7f)) MinimizeWindow();
-            DrawTexture(_minimizeIcon, (int)minimizeButton.x, (int)minimizeButton.y, Color.WHITE);
+            var downLap = new Rectangle(1086, 192, 30, 50);
+            var upLap = new Rectangle(1166, 192, 30, 50);
+            var clockwise = new Rectangle(1200, 192, 120, 50);
+            var plus = new Rectangle(1322, 192, 40, 50);
+            var pause = new Rectangle(1364, 192, 180, 50);
+            var minus = new Rectangle(1546, 192, 40, 50);
             
-            var output = Ui.DrawButton(closeButton, Color.RED, 0.7f);
-            DrawTexture(_closeIcon, (int)closeButton.x, (int)closeButton.y, Color.WHITE);
-            return output;
+            DrawRectangleRec(downLap, Ui.IsHovering(downLap, !shutdownRequest) ? Color.GOLD : Fade(Color.GOLD, 0.7f));
+            DrawRectangleRec(upLap, Ui.IsHovering(upLap, !shutdownRequest) ? Color.GOLD : Fade(Color.GOLD, 0.7f));
+            DrawRectangleRec(clockwise, Ui.IsHovering(clockwise, !shutdownRequest) ? Color.LIME : Fade(Color.LIME, 0.7f));
+            DrawRectangleRec(plus, Ui.IsHovering(plus, !shutdownRequest) ? Color.YELLOW : Fade(Color.YELLOW, 0.7f));
+            DrawRectangleRec(pause, Ui.IsHovering(pause, !shutdownRequest) 
+                ? (_isTicking ? Color.GREEN : Color.RED) 
+                : (_isTicking ? Fade(Color.GREEN, 0.7f) : Fade(Color.RED, 0.7f)));
+            DrawRectangleRec(minus, Ui.IsHovering(minus, !shutdownRequest) ? Color.YELLOW : Fade(Color.YELLOW, 0.7f));
+            
+            DrawTexture(_timer, 1086, 192, Color.BLACK);
+            Ui.DrawTextCentered(new Rectangle(1116, 192, 50, 50), Ui.Galmuri48, _laps[_idx], 48, Color.BLACK);
+            Ui.DrawTextCentered(clockwise, Ui.Galmuri48, _isClockwise ? "시계" : "반시계", 48, Color.BLACK);
+            Ui.DrawTextCentered(new Rectangle(1324, 192, 260, 50), Ui.Galmuri48, 
+                $"{_timeSpan.Hours:00}:{_timeSpan.Minutes:00}:{_timeSpan.Seconds:00}", 48, Color.BLACK);
         }
 
-        private void Timer(bool shutdownRequest)
+        private void ControlTimer(bool shutdownRequest)
         {
-            if (!shutdownRequest && _isTicking) _timeSpan = _stopwatch.Elapsed + TimeSpan.FromSeconds(_timeOffset);
-            
-            if (!shutdownRequest && Ui.DrawButton(new Rectangle(966, 192, 30, 50), Color.GOLD, 0.7f))
-                _laps = Math.Clamp(--_laps, 1, 3);
-            if (!shutdownRequest && Ui.DrawButton(new Rectangle(1046, 192, 30, 50), Color.GOLD, 0.7f))
-                _laps = Math.Clamp(++_laps, 1, 3);
-            if (!shutdownRequest && Ui.DrawButton(new Rectangle(1080, 192, 120, 50), Color.LIME, 0.7f))
+            if (_isTicking) _timeSpan = _stopwatch.Elapsed + TimeSpan.FromSeconds(_offset);
+
+            if (Ui.IsHovering(new Rectangle(1086, 192, 30, 50), !shutdownRequest) && IsMouseButtonPressed(0))
+                _idx = Math.Clamp(--_idx, 0, 3);
+            if (Ui.IsHovering(new Rectangle(1166, 192, 30, 50), !shutdownRequest) && IsMouseButtonPressed(0))
+                _idx = Math.Clamp(++_idx, 0, 3);
+            if (Ui.IsHovering(new Rectangle(1200, 192, 120, 50), !shutdownRequest) && IsMouseButtonPressed(0))
                 _isClockwise = !_isClockwise;
-            if (!shutdownRequest && Ui.DrawButton(new Rectangle(1202, 192, 40, 50), Color.YELLOW, 0.7f))
-                _timeOffset += 60.0f;
-            if (!shutdownRequest && Ui.DrawButton(new Rectangle(1244, 192, 180, 50), 
-                    _isTicking ? Color.GREEN : Color.RED, 0.7f))
+            if (Ui.IsHovering(new Rectangle(1322, 192, 40, 50), !shutdownRequest) && IsMouseButtonPressed(0))
+                _offset += 60.0f;
+            if (Ui.IsHovering(new Rectangle(1364, 192, 180, 50), !shutdownRequest) && IsMouseButtonPressed(0))
             {
                 _isTicking = !_isTicking;
                 if (_isTicking) _stopwatch.Start();
                 else _stopwatch.Stop();
             }
-            if (!shutdownRequest && Ui.DrawButton(new Rectangle(1426, 192, 40, 50), Color.YELLOW, 0.7f))
-                _timeOffset -= Math.Min(60, _timeSpan.TotalSeconds);
-
-            DrawTexture(_timer, 966, 192, Color.BLACK);
-            Ui.DrawCenteredText(new Rectangle(996, 192, 50, 50), Ui.Galmuri48, 
-                _laps.ToString(), 48, Color.BLACK);
-            Ui.DrawCenteredText(new Rectangle(1080, 192, 120, 50), Ui.Galmuri48, 
-                _isClockwise ? "시계" : "반시계", 48, Color.BLACK);
-            Ui.DrawCenteredText(new Rectangle(1204, 192, 260, 50), Ui.Galmuri48, 
-                $"{_timeSpan.Hours:00}:{_timeSpan.Minutes:00}:{_timeSpan.Seconds:00}", 48, Color.BLACK);
-        }
-
-        // Controls
-
-        private void PostLogin()
-        {
-            if (Directory.Exists("Logs") && Directory.GetFiles("Logs").Any())
-                CurrScene = Scene.Load;
-            else
-            {
-                _wheel.Options = SaveLoad.DefaultOptions;
-                PrepareGame();
-            }
-        }
-        
-        private void PrepareGame()
-        {
-            CurrScene = Scene.Board;
-            _login.Connect();
-            _chat.Connect();
+            if (Ui.IsHovering(new Rectangle(1546, 192, 40, 50), !shutdownRequest) && IsMouseButtonPressed(0))
+                _offset -= Math.Min(60, _timeSpan.TotalSeconds);
         }
     }
 }

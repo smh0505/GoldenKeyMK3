@@ -6,17 +6,37 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
-    <Version>1.4</Version>
+    <Version>2.0</Version>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Raylib-Cs" Version="4.2.0.1" />
-    <PackageReference Include="Websocket.Client" Version="4.4.43" />
-    <PackageReference Include="YamlDotNet" Version="12.3.1" />
+    <PackageReference Include="Raylib-Cs" Version="4.2.0.2" />
+    <PackageReference Include="Websocket.Client" Version="4.6.1" />
+    <PackageReference Include="YamlDotNet" Version="13.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Resource\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resource\Fonts\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="default.yml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="board.yml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Logs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Script\LoadScene.cs" />
   </ItemGroup>
 
 </Project>

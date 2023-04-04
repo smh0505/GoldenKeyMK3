@@ -7,15 +7,15 @@ namespace GoldenKeyMK3.Script
     public class Chat : IDisposable
     {
         private readonly Poll _poll;
-        private readonly Board _board;
+        private int[] _goldenKeys;
+        private string[] _board; 
         
         private readonly ManualResetEvent _exitEvent;
         private WebsocketClient _client;
         
-        public Chat(Poll poll, Board board)
+        public Chat(Poll poll)
         {
             _poll = poll;
-            _board = board;
             _exitEvent = new ManualResetEvent(false);
         }
         
@@ -36,6 +36,12 @@ namespace GoldenKeyMK3.Script
                 _client.Send("JOIN #arpa__");
                 _exitEvent.WaitOne();
             }
+        }
+
+        public void Update(int[] goldenKeys, string[] board)
+        {
+            _goldenKeys = goldenKeys;
+            _board = board;
         }
 
         public void Dispose()
@@ -89,10 +95,10 @@ namespace GoldenKeyMK3.Script
             if (!int.TryParse(content[1], out var idx)) return false;
             if (idx is <= 0 or 13 or > 25) return false;
 
-            theme = _board.CurrBoard[idx];
+            theme = _board[idx];
             song = content[2][..^1];
             if (idx is 7 or 20) island = true;
-            return !_board.GoldenKeys.Contains(idx);
+            return !_goldenKeys.Contains(idx);
         }
         
         private static string GetUsername(string tags, string source)

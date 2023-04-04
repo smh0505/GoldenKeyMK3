@@ -44,22 +44,26 @@ namespace GoldenKeyMK3.Script
 
     public class Poll : IDisposable
     {
-        private readonly Board _board;
         private readonly Random _rnd;
-        
+        public PollState State;
+
         public ImmutableList<PollRequest> Requests;
         public ImmutableList<PollRequest> IslandRequests;
         public ImmutableList<PollRequest> UsedList;
         public ImmutableList<PollResponse> Sequence;
+        
+        public string Target;
+        private Dictionary<string, Color> _themePairs;
 
         private readonly Texture2D _scene;
         private readonly Texture2D _alert;
         private readonly Texture2D _result;
 
         private List<PollRequest> _temp;
-        private PollState _state;
         private PollRequest _current;
-        private int _target;
+
+        private readonly Rectangle[] _pollButton;
+        private readonly bool[] _pollHover;
 
         private float _yPos;
         private int _idx;
@@ -70,24 +74,32 @@ namespace GoldenKeyMK3.Script
         private float _xPos;
         private float _xPos2;
 
-        public Poll(Board board)
+        public Poll()
         {
             _rnd = new Random();
-            _board = board;
+            
+            Requests = ImmutableList<PollRequest>.Empty;
+            IslandRequests = ImmutableList<PollRequest>.Empty;
+            UsedList = ImmutableList<PollRequest>.Empty;
+            Sequence = ImmutableList<PollResponse>.Empty;
             
             _scene = LoadTexture("Resource/poll.png");
             _alert = LoadTexture("Resource/alert.png");
             _result = LoadTexture("Resource/result.png");
 
-            Requests = ImmutableList<PollRequest>.Empty;
-            IslandRequests = ImmutableList<PollRequest>.Empty;
-            UsedList = ImmutableList<PollRequest>.Empty;
-            Sequence = ImmutableList<PollResponse>.Empty;
-
             _temp = new List<PollRequest>();
-            _state = PollState.Idle;
-            _target = 0;
-            _current = new PollRequest(string.Empty, string.Empty, string.Empty, 0);
+            State = PollState.Idle;
+            Target = string.Empty;
+            _themePairs = new Dictionary<string, Color>();
+            _current = new PollRequest();
+            
+            _pollHover = new[] { false, false, false };
+            _pollButton = new Rectangle[]
+            {
+                new(332, 840, 160, 48),
+                new(500, 840, 160, 48),
+                new(668, 840, 160, 48)
+            };
 
             _yPos = 0;
             _idx = 0;
@@ -99,26 +111,21 @@ namespace GoldenKeyMK3.Script
             _xPos2 = 0;
         }
         
-        // Public Methods
-
-        public void Draw(bool shutdownRequest)
+        public void Draw()
         {
             DrawTexture(_scene, 320, 180, Color.WHITE);
             
-            if (FindAllSongs(_target).Any()) DrawPoll(shutdownRequest);
+            if (FindAllSongs(Target).Any()) DrawPoll();
             DrawRequests();
             DrawUsedList();
             DrawSequence();
-            if (_state != PollState.Idle) DrawResult();
-            
-            DrawHover(shutdownRequest);
+            if (State != PollState.Idle) DrawResult();
         }
 
         public void Control(bool shutdownRequest)
         {
-            if (FindAllSongs(_target).Any()) ControlPoll(shutdownRequest);
-            if (_state == PollState.Idle) ControlHover(shutdownRequest);
-            if (_state == PollState.Active) _current = _temp[_rnd.Next(_temp.Count)];
+            if (FindAllSongs(Target).Any()) ControlPoll(shutdownRequest);
+            if (State == PollState.Active) _current = _temp[_rnd.Next(_temp.Count)];
         }
 
         public void Dispose()
@@ -129,18 +136,17 @@ namespace GoldenKeyMK3.Script
             GC.SuppressFinalize(this);
         }
         
-        // Private Methods
+        // UIs
 
         private void DrawRequests()
         {
-            if (FindAllSongs(_target).Any())
+            if (FindAllSongs(Target).Any())
             {
-                var theme = _board.CurrBoard[_target];
-                var color = _target is 7 or 20 ? Color.WHITE : _board.ThemePairs[theme];
+                var color = _themePairs.TryGetValue(Target, out var value) ? Color.WHITE : value;
                 DrawRectangle(332, 192, 622, 62, color);
-                DrawTextEx(Ui.Galmuri48, theme.Replace("_", " "), new Vector2(344, 199), 48, 0, Color.BLACK);
+                DrawTextEx(Ui.Galmuri48, Target.Replace("_", " "), new Vector2(344, 199), 48, 0, Color.BLACK);
 
-                var requests = VertMarquee(FindAllSongs(_target).ToList(), 286, ref _yPos, ref _idx).ToArray();
+                var requests = VertMarquee(FindAllSongs(Target).ToList(), 286, ref _yPos, ref _idx).ToArray();
                         
                 BeginScissorMode(332, 254, 622, 286);
                 for (var i = 0; i < requests.Length; i++)
@@ -157,7 +163,7 @@ namespace GoldenKeyMK3.Script
         {
             DrawTexture(_result, 332, 254, Color.WHITE);
             BeginScissorMode(332, 254, 622, 286);
-            if (_state == PollState.Result) HoriMarquee(_current.Song);
+            if (State == PollState.Result) HorizonMarquee(_current.Song);
             else DrawTextEx(Ui.Galmuri48, _current.Song, new Vector2(352, 314), 48, 0, Color.WHITE);
             DrawTextEx(Ui.Galmuri24, _current.Name, new Vector2(402, 380), 24, 0, Color.WHITE);
             EndScissorMode();
@@ -190,42 +196,13 @@ namespace GoldenKeyMK3.Script
             EndScissorMode();
         }
 
-        private void DrawHover(bool shutdownRequest)
+        private void DrawPoll()
         {
-            for (var i = 0; i < _board.Blocks.Length; i++)
-            {
-                var button = new Rectangle(_board.Blocks[i].x + 2, _board.Blocks[i].y + 2, _board.Blocks[i].width - 4,
-                    _board.Blocks[i].height - 4);
-                if (Ui.IsHovering(button, !shutdownRequest))
-                {
-                    DrawRectangleRec(button, Fade(Color.WHITE, 0.7f));
-                    var text = i is 0 or 13 || _board.GoldenKeys.Contains(i)
-                        ? _board.CurrBoard[i]
-                        : FindAllSongs(i).ToArray().Length.ToString();
-                    Ui.DrawTextCentered(button, Ui.Galmuri48, text, 48, Color.BLACK);
-                }
-            }
-        }
-
-        private void ControlHover(bool shutdownRequest)
-        {
-            for (var i = 0; i < _board.Blocks.Length; i++)
-            {
-                var button = new Rectangle(_board.Blocks[i].x + 2, _board.Blocks[i].y + 2, _board.Blocks[i].width - 4,
-                    _board.Blocks[i].height - 4);
-                if (Ui.IsHovering(button, !shutdownRequest) && IsMouseButtonPressed(0))
-                    _target = i;
-            }
-        }
-
-        private void DrawPoll(bool shutdownRequest)
-        {
-            var button1 = new Rectangle(332, 840, 160, 48);
-            var button2 = new Rectangle(500, 840, 160, 48);
-            var button3 = new Rectangle(668, 840, 160, 48);
-
-            var color1 = Ui.IsHovering(button1, !shutdownRequest) ? Color.SKYBLUE : Fade(Color.SKYBLUE, 0.7f);
-            var text1 = _state switch
+            var color1 = _pollHover[0] ? Color.SKYBLUE : Fade(Color.SKYBLUE, 0.7f);
+            var color2 = _pollHover[1] ? Color.SKYBLUE : Fade(Color.SKYBLUE, 0.7f);
+            var color3 = _pollHover[2] ? Color.SKYBLUE : Fade(Color.SKYBLUE, 0.7f);
+            
+            var text1 = State switch
             {
                 PollState.Idle => "추첨",
                 PollState.Active => "멈추기",
@@ -233,58 +210,61 @@ namespace GoldenKeyMK3.Script
                 _ => string.Empty
             };
             
-            DrawRectangleRec(button1, color1);
-            Ui.DrawTextCentered(button1, Ui.Galmuri36, text1, 36, Color.BLACK);
+            DrawRectangleRec(_pollButton[0], color1);
+            Ui.DrawTextCentered(_pollButton[0], Ui.Galmuri36, text1, 36, Color.BLACK);
 
-            if (_state == PollState.Result)
-            {
-                var color2 = Ui.IsHovering(button2, !shutdownRequest) ? Color.SKYBLUE : Fade(Color.SKYBLUE, 0.7f);
-                var color3 = Ui.IsHovering(button3, !shutdownRequest) ? Color.SKYBLUE : Fade(Color.SKYBLUE, 0.7f);
-                
-                DrawRectangleRec(button2, color2);
-                Ui.DrawTextCentered(button2, Ui.Galmuri36, "재추첨", 36, Color.BLACK);
-                DrawRectangleRec(button3, color3);
-                Ui.DrawTextCentered(button3, Ui.Galmuri36, "추첨 취소", 36, Color.BLACK);
-            }
+            if (State != PollState.Result) return;
+
+            DrawRectangleRec(_pollButton[1], color2);
+            Ui.DrawTextCentered(_pollButton[1], Ui.Galmuri36, "재추첨", 36, Color.BLACK);
+            DrawRectangleRec(_pollButton[2], color3);
+            Ui.DrawTextCentered(_pollButton[2], Ui.Galmuri36, "추첨 취소", 36, Color.BLACK);
         }
 
+        // Controls
+
+        public void Update(Dictionary<string, Color> themePairs)
+            => _themePairs = new Dictionary<string, Color>(themePairs);
+
+        public IEnumerable<PollRequest> FindAllSongs(string theme)
+        {
+            var output = new List<PollRequest>();
+            output.AddRange(IslandRequests.FindAll(x => x.Theme == theme));
+            output.AddRange(Requests.FindAll(x => x.Theme == theme));
+            return output;
+        }
+        
         private void ControlPoll(bool shutdownRequest)
         {
-            var button1 = new Rectangle(332, 840, 160, 48);
-            var button2 = new Rectangle(500, 840, 160, 48);
-            var button3 = new Rectangle(668, 840, 160, 48);
+            for (var i = 0; i < 3; i++)
+                _pollHover[i] = Ui.IsHovering(_pollButton[i], !shutdownRequest);
 
-            switch (_state)
+            if (_pollHover[0] && IsMouseButtonPressed(0))
             {
-                case PollState.Idle:
-                    if (Ui.IsHovering(button1, !shutdownRequest) && IsMouseButtonPressed(0))
-                    {
-                        _state = PollState.Active;
-                        _temp = new List<PollRequest>(FindAllSongs(_target));
-                    }
-                    break;
-                case PollState.Active:
-                    if (Ui.IsHovering(button1, !shutdownRequest) && IsMouseButtonPressed(0))
-                        _state = PollState.Result;
-                    break;
-                case PollState.Result:
-                    if (Ui.IsHovering(button1, !shutdownRequest) && IsMouseButtonPressed(0))
-                    {
-                        _state = PollState.Idle;
+                switch (State)
+                {
+                    case PollState.Idle:
+                        State = PollState.Active;
+                        _temp = new List<PollRequest>(FindAllSongs(Target));
+                        break;
+                    case PollState.Active:
+                        State = PollState.Result;
+                        break;
+                    case PollState.Result:
+                        State = PollState.Idle;
                         UsedList = UsedList.Add(_current);
                         Requests = Requests.RemoveAll(x => x.Name == _current.Name);
                         IslandRequests = IslandRequests.RemoveAll(x => x.Name == _current.Name);
                         _current = new PollRequest();
-                    }
-
-                    if (Ui.IsHovering(button2, !shutdownRequest) && IsMouseButtonPressed(0))
-                        _state = PollState.Active;
-
-                    if (Ui.IsHovering(button3, !shutdownRequest) && IsMouseButtonPressed(0))
-                        _state = PollState.Idle;
-
-                    break;
+                        break;
+                }
             }
+
+            if (State != PollState.Result) return;
+            if (_pollHover[1] && IsMouseButtonPressed(0))
+                State = PollState.Active;
+            if (_pollHover[2] && IsMouseButtonPressed(0))
+                State = PollState.Idle;
         }
 
         private List<PollRequest> VertMarquee(IReadOnlyCollection<PollRequest> requests, float height, ref float y, ref int head)
@@ -307,7 +287,7 @@ namespace GoldenKeyMK3.Script
             return output;
         }
 
-        private void HoriMarquee(string song)
+        private void HorizonMarquee(string song)
         {
             var size = MeasureTextEx(Ui.Galmuri48, song, 48, 0).X;
             if (size > 622)
@@ -324,18 +304,6 @@ namespace GoldenKeyMK3.Script
             
             DrawTextEx(Ui.Galmuri48, song, new Vector2(352 + _xPos, 314), 48, 0, Color.YELLOW);
             if (size > 622) DrawTextEx(Ui.Galmuri48, song, new Vector2(352 + _xPos2, 314), 48, 0, Color.YELLOW);
-        }
-
-        private IEnumerable<PollRequest> FindAllSongs(int idx)
-        {
-            return idx switch
-            {
-                7 => IslandRequests.FindAll(x => x.Theme == _board.CurrBoard[7]),
-                20 => IslandRequests.FindAll(x => x.Theme == _board.CurrBoard[20]),
-                _ => idx is < 0 or > 25
-                    ? ImmutableList<PollRequest>.Empty
-                    : Requests.FindAll(x => x.Theme == _board.CurrBoard[idx])
-            };
         }
     }
 }

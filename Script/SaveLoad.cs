@@ -35,7 +35,26 @@ namespace GoldenKeyMK3.Script
             Color = color;
         }
     }
-    
+
+    public struct CheckPoint
+    {
+        public PollRequest[] Requests { get; set; }
+        public PollRequest[] IslandRequests { get; set; }
+        public PollRequest[] UsedList { get; set; }
+        public string[] Board { get; set; }
+        public Dictionary<string, Color> ThemePairs { get; set; }
+
+        public CheckPoint(PollRequest[] requests, PollRequest[] islandRequests, PollRequest[] usedList,
+            string[] board, Dictionary<string, Color> themePairs)
+        {
+            Requests = requests;
+            IslandRequests = islandRequests;
+            UsedList = usedList;
+            Board = board;
+            ThemePairs = themePairs;
+        }
+    }
+
     public static class SaveLoad
     {
         public static Setting LoadSetting()
@@ -85,6 +104,11 @@ namespace GoldenKeyMK3.Script
             var themes = deserializer.Deserialize<Dictionary<string, string[]>>(data);
 
             return themes;
+        }
+
+        public static void LoadCheckPoint()
+        {
+            
         }
 
         public static void SaveLog(Wheel wheel)

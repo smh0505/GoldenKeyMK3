@@ -24,7 +24,7 @@ namespace GoldenKeyMK3.Script
                 {
                     if (!msg.ToString().Contains("roulette")) return;
                     var roulette = Regex.Match(msg.ToString(), "\"message\":\"[^\"]* - [^\"]*\"").Value[10..];
-                    var rValue = roulette.Split('-')[1].Replace("\"", "")[1..];
+                    var rValue = roulette.Split('-', 2)[1].Replace("\"", "")[1..];
                     if (rValue != "꽝") _wheel.WaitList = _wheel.WaitList.Add(rValue);
                 });
                 await _client.Start();

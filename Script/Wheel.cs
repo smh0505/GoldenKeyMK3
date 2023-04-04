@@ -13,7 +13,7 @@ namespace GoldenKeyMK3.Script
         Result
     }
     
-    public class Wheel : IDisposable
+    public class Wheel : IGameObject
     {
         public ImmutableList<string> WaitList;
         public List<Panel> Panels;

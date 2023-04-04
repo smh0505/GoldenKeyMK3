@@ -32,14 +32,7 @@ namespace GoldenKeyMK3.Script
             DrawRectangleRec(_cancelButton, cancelColor);
             DrawTexture(_cancel, 12, 912, Color.WHITE);
         }
-
-        public void Dispose()
-        {
-            UnloadTexture(_scene);
-            UnloadTexture(_cancel);
-            GC.SuppressFinalize(this);
-        }
-
+        
         public void Control(ref bool shutdownRequest, out bool shutdownResponse)
         {
             if (Ui.IsHovering(_cancelButton, shutdownRequest))
@@ -61,6 +54,13 @@ namespace GoldenKeyMK3.Script
                 if (IsKeyPressed(KeyboardKey.KEY_SPACE)) _count++;
                 shutdownResponse = _count >= 5;
             }
+        }
+        
+        public void Dispose()
+        {
+            UnloadTexture(_scene);
+            UnloadTexture(_cancel);
+            GC.SuppressFinalize(this);
         }
     }
 }

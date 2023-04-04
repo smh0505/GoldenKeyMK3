@@ -4,7 +4,7 @@ using static Raylib_cs.Raylib;
 
 namespace GoldenKeyMK3.Script
 { 
-    public class Log : IDisposable
+    public class Log : IGameObject
     {
         public List<Panel> Panels;
         public readonly List<Panel> DefaultSet;

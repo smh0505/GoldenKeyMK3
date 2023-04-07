@@ -31,11 +31,11 @@ namespace GoldenKeyMK3.Script
         
         public static void DrawTextMultiLine(Rectangle box, Font font, string[] texts, float fontSize, Color fontColor)
         {
-            var textSizes = texts.Select(text => MeasureTextEx(font, text, fontSize, 0)).ToArray();
-            var initHeight = (box.height - fontSize * textSizes.Length) * 0.5f;
-            for (var i = 0; i < textSizes.Length; i++)
+            var initHeight = (box.height - fontSize * texts.Length) * 0.5f;
+            for (var i = 0; i < texts.Length; i++)
             {
-                var pos = new Vector2(box.x + (box.width - textSizes[i].X) * 0.5f, box.y + initHeight + fontSize * i);
+                var size = MeasureTextEx(font, texts[i], fontSize, 0).X;
+                var pos = new Vector2(box.x + (box.width - size) * 0.5f, box.y + (initHeight + fontSize * i));
                 DrawTextEx(font, texts[i], pos, fontSize, 0, fontColor);
             }
         }

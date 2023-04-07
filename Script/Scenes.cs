@@ -66,7 +66,7 @@ namespace GoldenKeyMK3.Script
                         else
                         {
                             _current = Scene.Board;
-                            _board.Connect(_login.Payload, _log.DefaultSet);
+                            _board.Connect(_login.Payload, _log.DefaultSet, _login.RecoverGame);
                         }
                     }
                     break;
@@ -75,7 +75,7 @@ namespace GoldenKeyMK3.Script
                     if (_log.Panels.Any())
                     {
                         _current = Scene.Board;
-                        _board.Connect(_login.Payload, _log.Panels);
+                        _board.Connect(_login.Payload, _log.Panels, _login.RecoverGame);
                     }
                     break;
                 case Scene.Board:

@@ -45,6 +45,7 @@ namespace GoldenKeyMK3.Script
     public class Poll : IDisposable
     {
         private readonly Random _rnd;
+        private readonly Inventory _inventory;
         public PollState State;
 
         public ImmutableList<PollRequest> Requests;
@@ -74,8 +75,9 @@ namespace GoldenKeyMK3.Script
         private float _xPos;
         private float _xPos2;
 
-        public Poll()
+        public Poll(Inventory inventory)
         {
+            _inventory = inventory;
             _rnd = new Random();
             
             Requests = ImmutableList<PollRequest>.Empty;
@@ -256,6 +258,7 @@ namespace GoldenKeyMK3.Script
                         Requests = Requests.RemoveAll(x => x.Name == _current.Name);
                         IslandRequests = IslandRequests.RemoveAll(x => x.Name == _current.Name);
                         _current = new PollRequest();
+                        _inventory.RemoveItems();
                         break;
                 }
             }

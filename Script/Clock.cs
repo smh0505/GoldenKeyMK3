@@ -9,9 +9,9 @@ namespace GoldenKeyMK3.Script
         public bool IsClockwise;
         private bool _isTicking;
 
-        private int _idx;
+        public int Idx;
         private double _offset;
-        private TimeSpan _timeSpan;
+        public TimeSpan TimeSpan;
 
         private readonly string[] _laps;
         private readonly Stopwatch _stopwatch;
@@ -28,9 +28,9 @@ namespace GoldenKeyMK3.Script
             IsClockwise = true;
             _isTicking = false;
             
-            _idx = 0;
+            Idx = 0;
             _offset = 0;
-            _timeSpan = TimeSpan.Zero;
+            TimeSpan = TimeSpan.Zero;
 
             _laps = new[] { "1", "2", "3", "B" };
             _stopwatch = new Stopwatch();
@@ -69,23 +69,23 @@ namespace GoldenKeyMK3.Script
                 DrawRectangleRec(_buttons[i], _buttonHover[i] ? _buttonColors[i] : Fade(_buttonColors[i], 0.7f));
             
             DrawTexture(_timer, 1086, 192, Color.BLACK);
-            Ui.DrawTextCentered(_ui[0], Ui.Galmuri48, _laps[_idx], 48, Color.BLACK);
+            Ui.DrawTextCentered(_ui[0], Ui.Galmuri48, _laps[Idx], 48, Color.BLACK);
             Ui.DrawTextCentered(_ui[1], Ui.Galmuri48, IsClockwise ? "시계" : "반시계", 48, Color.BLACK);
             Ui.DrawTextCentered(_ui[2], Ui.Galmuri48,
-                $"{_timeSpan.Hours:00}:{_timeSpan.Minutes:00}:{_timeSpan.Seconds:00}", 48, Color.BLACK);
+                $"{TimeSpan.Hours:00}:{TimeSpan.Minutes:00}:{TimeSpan.Seconds:00}", 48, Color.BLACK);
         }
 
         public void Control(bool shutdownRequest)
         {
-            if (_isTicking) _timeSpan = _stopwatch.Elapsed + TimeSpan.FromSeconds(_offset);
+            if (_isTicking) TimeSpan = _stopwatch.Elapsed + TimeSpan.FromSeconds(_offset);
             
             for (var i = 0; i < 6; i++)
                 _buttonHover[i] = Ui.IsHovering(_buttons[i], !shutdownRequest);
 
             if (_buttonHover[0] && IsMouseButtonPressed(0))
-                _idx = Math.Clamp(--_idx, 0, 3);
+                Idx = Math.Clamp(--Idx, 0, 3);
             if (_buttonHover[1] && IsMouseButtonPressed(0))
-                _idx = Math.Clamp(++_idx, 0, 3);
+                Idx = Math.Clamp(++Idx, 0, 3);
             if (_buttonHover[2] && IsMouseButtonPressed(0))
                 IsClockwise = !IsClockwise;
             if (_buttonHover[3] && IsMouseButtonPressed(0))
@@ -97,7 +97,7 @@ namespace GoldenKeyMK3.Script
                 else _stopwatch.Stop();
             }
             if (_buttonHover[5] && IsMouseButtonPressed(0))
-                _offset -= Math.Min(60, _timeSpan.TotalSeconds);
+                _offset -= Math.Min(60, TimeSpan.TotalSeconds);
         }
 
         public void Dispose()

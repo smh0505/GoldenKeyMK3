@@ -19,13 +19,19 @@ namespace GoldenKeyMK3.Script
 
         private readonly Texture2D _scene;
 
+        public bool RecoverGame;
+        private bool _recoverHover;
+        private readonly Rectangle _recoverButton;
+
         public Login()
         {
             _scene = LoadTexture("Resource/login.png");
             Payload = _input = string.Empty;
-            _isShowed = _processing = _failed = _copyHover = false;
+            _isShowed = _processing = _failed = _copyHover = _recoverHover = false;
             _frames = 0;
             _copyButton = new Rectangle(12, 12, 160, 80);
+            _recoverButton = new Rectangle(1748, 12, 160, 80);
+            RecoverGame = false;
         }
 
         // Public Methods
@@ -35,6 +41,12 @@ namespace GoldenKeyMK3.Script
             var copyColor = _copyHover ? Color.GREEN : Fade(Color.GREEN, 0.7f);
             DrawRectangleRec(_copyButton, copyColor);
             Ui.DrawTextCentered(_copyButton, Ui.Galmuri48, "붙여넣기", 48, Color.BLACK);
+
+            var recoverColor = _recoverHover
+                ? RecoverGame ? Color.BLUE : Color.RED
+                : RecoverGame ? Fade(Color.BLUE, 0.7f) : Fade(Color.RED, 0.7f);
+            DrawRectangleRec(_recoverButton, recoverColor);
+            Ui.DrawTextCentered(_recoverButton, Ui.Galmuri48, "복구하기", 48, Color.BLACK);
             
             DrawTexture(_scene, 0, 0, Color.WHITE);
             if (_failed) DrawAlert();
@@ -49,12 +61,13 @@ namespace GoldenKeyMK3.Script
 
         public async void Control(bool shutdownRequest)
         {
-            if (Ui.IsHovering(_copyButton, !shutdownRequest))
-            {
-                _copyHover = true;
-                if (IsMouseButtonPressed(0)) _input = GetClipboardText_();
-            }
-            else _copyHover = false;
+            _copyHover = Ui.IsHovering(_copyButton, !shutdownRequest);
+            if (_copyHover && IsMouseButtonPressed(0))
+                _input = GetClipboardText_();
+
+            _recoverHover = File.Exists("checkpoint.yml") && Ui.IsHovering(_recoverButton, !shutdownRequest);
+            if (_recoverHover && IsMouseButtonPressed(0))
+                RecoverGame = !RecoverGame;
 
             if (IsKeyDown(KeyboardKey.KEY_BACKSPACE) && _input.Length > 0)
             {

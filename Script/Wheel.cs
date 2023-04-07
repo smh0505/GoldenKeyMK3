@@ -17,6 +17,7 @@ namespace GoldenKeyMK3.Script
     {
         public ImmutableList<string> WaitList;
         public List<Panel> Panels;
+        private readonly Inventory _inventory;
 
         private WheelState _state;
         private float _startAngle;
@@ -28,16 +29,17 @@ namespace GoldenKeyMK3.Script
         private readonly Texture2D _result;
         private bool _spinHover;
 
-        public Wheel()
+        public Wheel(Inventory inventory)
         {
             WaitList = ImmutableList<string>.Empty;
             Panels = new List<Panel>();
+            _inventory = inventory;
 
             _state = WheelState.Idle;
-            _startAngle = 0;
+            _startAngle = 180;
             _theta = 3000.0f;
             _radius = 250.0f;
-            _center = new Vector2(680, 540);
+            _center = new Vector2(680, 640);
 
             _buttonText = new Dictionary<WheelState, string>()
             {
@@ -55,12 +57,14 @@ namespace GoldenKeyMK3.Script
 
         public void Draw()
         {
+            _inventory.Draw();
+            
             if (Sum > 0)
             {
                 DrawSectors();
                 DrawLabels();
 
-                Vector2[] vtx = { new(670, 280), new(680, 300), new(690, 280) };
+                Vector2[] vtx = { new(670, 380), new(680, 400), new(690, 380) };
                 DrawTriangle(vtx[0], vtx[1], vtx[2], Color.BLACK);
             }
             if (_state == WheelState.Result) DrawResult();
@@ -76,17 +80,19 @@ namespace GoldenKeyMK3.Script
         public void Control(bool shutdownRequest)
         {
             Update();
-            
-            if (Ui.IsHovering(new Vector2(400, 820), 60.0f, !shutdownRequest))
+
+            _spinHover = Ui.IsHovering(new Vector2(400, 820), 60.0f, !shutdownRequest);
+            if (_state != WheelState.Stopping && _spinHover && IsMouseButtonPressed(0))
             {
-                _spinHover = true;
-                if (_state != WheelState.Stopping && IsMouseButtonPressed(0))
-                {
-                    _state = (WheelState)((int)(_state + 1) % 4);
-                    if (_state == WheelState.Idle) RemovePanel(Result());
-                }
+                _state = (WheelState)((int)(_state + 1) % 4);
+                if (_state != WheelState.Idle) return;
+
+                var target = Result();
+                _inventory.AddItem(target.Name);
+                RemovePanel(target);
             }
-            else _spinHover = false;
+            
+            _inventory.Control(shutdownRequest);
         }
 
         public void Dispose()
@@ -110,8 +116,8 @@ namespace GoldenKeyMK3.Script
                     break;
                 case WheelState.Spinning:
                 case WheelState.Stopping:
-                    _startAngle += _theta * GetFrameTime();
-                    if (_startAngle >= 360.0f) _startAngle -= 360.0f;
+                    _startAngle -= _theta * GetFrameTime();
+                    if (_startAngle <= 0.0f) _startAngle += 360.0f;
                     if (_state == WheelState.Stopping)
                     {
                         _theta -= 60 / MathF.PI;
@@ -140,7 +146,7 @@ namespace GoldenKeyMK3.Script
         {
             var id = Panels.IndexOf(panel);
             Panels[id] = new Panel(panel.Name, panel.Count - 1, panel.Color);
-            if (Panels[id].Count == 0) Panels.Remove(Panels[id]);
+            if (Panels[id].Count == 0) Panels.RemoveAt(id);
         }
 
         private Panel Result()
@@ -156,9 +162,9 @@ namespace GoldenKeyMK3.Script
             
             do
             {
-                i++;
                 target = Panels[i];
                 idCount += Panels[i].Count;
+                i++;
             } while (idCount <= id);
 
             return target;

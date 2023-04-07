@@ -42,16 +42,28 @@ namespace GoldenKeyMK3.Script
         public PollRequest[] IslandRequests { get; set; }
         public PollRequest[] UsedList { get; set; }
         public string[] Board { get; set; }
+        public string[] BackUpBoard { get; set; }
+        public (string, int)[] Inventory { get; set; }
         public Dictionary<string, Color> ThemePairs { get; set; }
+        public bool IsClockwise { get; set; }
+        public int Laps { get; set; }
+        public TimeSpan Time { get; set; }
 
-        public CheckPoint(PollRequest[] requests, PollRequest[] islandRequests, PollRequest[] usedList,
-            string[] board, Dictionary<string, Color> themePairs)
+        public CheckPoint(PollRequest[] requests, PollRequest[] islandRequests, 
+            PollRequest[] usedList, string[] board, string[] backUpBoard, 
+            (string, int)[] inventory, Dictionary<string, Color> themePairs, 
+            bool isClockwise, int laps, TimeSpan time)
         {
             Requests = requests;
             IslandRequests = islandRequests;
             UsedList = usedList;
             Board = board;
+            BackUpBoard = backUpBoard;
             ThemePairs = themePairs;
+            Inventory = inventory;
+            IsClockwise = isClockwise;
+            Laps = laps;
+            Time = time;
         }
     }
 
@@ -106,9 +118,43 @@ namespace GoldenKeyMK3.Script
             return themes;
         }
 
-        public static void LoadCheckPoint()
+        public static CheckPoint LoadCheckPoint()
         {
+            // Read log file
+            var r = new StreamReader("checkpoint.yml");
+            var data = r.ReadToEnd();
+            r.Close();
             
+            // Deserialize
+            var deserializer = new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .Build();
+            var checkpoint = deserializer.Deserialize<CheckPoint>(data);
+
+            return checkpoint;
+        }
+
+        public static void SaveCheckPoint(PollRequest[] requests, PollRequest[] islandRequests, 
+            PollRequest[] usedList, string[] board, string[] backUpBoard, (string, int)[] inventory,
+            Dictionary<string, Color> themePairs, bool isClockwise, int laps, TimeSpan time)
+        {
+            // Create Log File
+            var filename = $"checkpoint.yml";
+
+            var output = new CheckPoint(requests, islandRequests, usedList, board, 
+                backUpBoard, inventory, themePairs, isClockwise, laps, time);
+
+            // Serialize Log
+            var serializer = new SerializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .Build();
+            var optionList = serializer.Serialize(output);
+
+            // Write Log File
+            using var file = File.Create(filename);
+            var w = new StreamWriter(file);
+            w.Write(optionList);
+            w.Close();
         }
 
         public static void SaveLog(Wheel wheel)

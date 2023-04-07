@@ -1,4 +1,5 @@
-﻿using Raylib_cs;
+﻿using System.Collections.Immutable;
+using Raylib_cs;
 using static Raylib_cs.Raylib;
 
 namespace GoldenKeyMK3.Script
@@ -7,20 +8,21 @@ namespace GoldenKeyMK3.Script
     {
         Poll = 0,
         Wheel,
-        Raffle,
-        Dice
+        Dice,
     }
     
     public class Board : IGameObject
     {
-        private BoardState _state;
-        
+        public BoardState State;
+        public bool MenuOpen;
+
+        private readonly Inventory _inventory;
         private readonly Wheel _wheel;
         private readonly Donation _donation;
         private readonly Poll _poll;
         private readonly Chat _chat;
-        private readonly Dice _dice;
         private readonly Clock _clock;
+        private readonly Menu _menu;
 
         private readonly Random _rnd;
         private readonly Rectangle[] _blocks;
@@ -30,7 +32,7 @@ namespace GoldenKeyMK3.Script
         private readonly Texture2D _keys;
 
         private List<int> _goldenKeys;
-        private readonly Dictionary<string, Color> _themePairs;
+        private Dictionary<string, Color> _themePairs;
         private readonly Dictionary<string, Texture2D> _islandPairs;
         private readonly Dictionary<string, Texture2D> _freePairs;
 
@@ -40,14 +42,16 @@ namespace GoldenKeyMK3.Script
 
         public Board()
         {
-            _state = BoardState.Poll;
-            
-            _wheel = new Wheel();
+            MenuOpen = false;
+            State = BoardState.Poll;
+
+            _inventory = new Inventory();
+            _wheel = new Wheel(_inventory);
             _donation = new Donation(_wheel);
-            _poll = new Poll();
+            _poll = new Poll(_inventory);
             _chat = new Chat(_poll);
-            _dice = new Dice();
             _clock = new Clock();
+            _menu = new Menu(this);
             
             _rnd = new Random();
             _blocks = new[]
@@ -134,7 +138,7 @@ namespace GoldenKeyMK3.Script
             DrawHover();
             _clock.Draw();
 
-            switch (_state)
+            switch (State)
             {
                 case BoardState.Wheel:
                     _wheel.Draw();
@@ -143,6 +147,8 @@ namespace GoldenKeyMK3.Script
                     _poll.Draw();
                     break;
             }
+            
+            if (MenuOpen) _menu.Draw();
         }
 
         public void Control(bool shutdownRequest)
@@ -150,7 +156,8 @@ namespace GoldenKeyMK3.Script
             ControlHover(shutdownRequest, ref _poll.Target);
             _clock.Control(shutdownRequest);
 
-            switch (_state)
+            if (MenuOpen) _menu.Control(shutdownRequest); 
+            else switch (State)
             {
                 case BoardState.Wheel:
                     _wheel.Control(shutdownRequest);
@@ -161,20 +168,28 @@ namespace GoldenKeyMK3.Script
             }
         }
 
-        public void Connect(string payload, List<Panel> panels)
+        public void Connect(string payload, List<Panel> panels, bool restoreGame)
         {
             _wheel.Panels = panels;
             _donation.Connect(payload);
             _chat.Connect();
+            if (File.Exists("checkpoint.yml") && restoreGame) RestoreGame();
         }
 
         public void Dispose()
         {
+            SaveLoad.SaveCheckPoint(_poll.Requests.ToArray(), _poll.IslandRequests.ToArray(), 
+                _poll.UsedList.ToArray(), _currBoard, _backup,
+                _inventory.ItemList.ToArray(), _themePairs, _clock.IsClockwise,
+                _clock.Idx, _clock.TimeSpan);
+            
+            _inventory.Dispose();
             _wheel.Dispose();
             _donation.Dispose();
             _poll.Dispose();
             _chat.Dispose();
             _clock.Dispose();
+            _menu.Dispose();
             SaveLoad.SaveLog(_wheel);
             
             UnloadTexture(_frame);
@@ -208,7 +223,7 @@ namespace GoldenKeyMK3.Script
             _poll.Update(_themePairs);
         }
         
-        private void Shuffle()
+        public void Shuffle()
         {
             var count = _goldenKeys.Count;
             _goldenKeys.Clear();
@@ -225,13 +240,13 @@ namespace GoldenKeyMK3.Script
             Finish();
         }
         
-        private void AddKey()
+        public void AddKey()
         {
             _goldenKeys.Add(-1);
             Shuffle();
         }
         
-        private void Restore()
+        public void Restore()
         {
             _currBoard = _backup;
             _goldenKeys = new List<int> { 2, 5, 9, 11, 15, 18, 22, 24 };
@@ -270,10 +285,26 @@ namespace GoldenKeyMK3.Script
                 _boardHover[i] = Ui.IsHovering(button, !shutdownRequest);
 
                 if (!_boardHover[i] || !IsMouseButtonPressed(0)) continue;
-                _state = _goldenKeys.Contains(i) ? BoardState.Wheel : BoardState.Poll;
-                if (_state == BoardState.Poll && _poll.State == PollState.Idle) 
+                if (i == 0) MenuOpen = !MenuOpen;
+                else State = _goldenKeys.Contains(i) ? BoardState.Wheel : BoardState.Poll;
+                if (State == BoardState.Poll && _poll.State == PollState.Idle) 
                     theme = _currBoard[i];
             }
+        }
+
+        private void RestoreGame()
+        {
+            var temp = SaveLoad.LoadCheckPoint();
+            _poll.Requests = temp.Requests.ToImmutableList();
+            _poll.IslandRequests = temp.IslandRequests.ToImmutableList();
+            _poll.UsedList = temp.UsedList.ToImmutableList();
+            _currBoard = temp.Board;
+            _backup = temp.BackUpBoard;
+            _themePairs = temp.ThemePairs;
+            _inventory.ItemList = temp.Inventory.ToImmutableList();
+            _clock.IsClockwise = temp.IsClockwise;
+            _clock.Idx = temp.Laps;
+            _clock.TimeSpan = temp.Time;
         }
         
         // UIs
@@ -322,7 +353,7 @@ namespace GoldenKeyMK3.Script
                 var text = i is 0 or 13 || _goldenKeys.Contains(i)
                     ? _currBoard[i]
                     : _poll.FindAllSongs(_currBoard[i]).Count().ToString();
-                Ui.DrawTextCentered(button, Ui.Galmuri36, text, 36, Color.BLACK);
+                Ui.DrawTextCentered(button, Ui.Galmuri48, text, 48, Color.BLACK);
             }
         }
     }

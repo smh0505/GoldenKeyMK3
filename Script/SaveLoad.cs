@@ -36,35 +36,23 @@ namespace GoldenKeyMK3.Script
         }
     }
 
-    public struct CheckPoint
+    public struct CheckPointQueues
     {
-        public PollRequest[] Requests { get; set; }
-        public PollRequest[] IslandRequests { get; set; }
-        public PollRequest[] UsedList { get; set; }
+        public (string Name, string Theme, string Song)[] Requests { get; set; }
+        public (string Name, string Theme, string Song)[] IslandRequests { get; set; }
+        public (string Name, string Song)[] UsedList { get; set; }
+        public (string Name, int Count)[] Inventory { get; set; }
+    }
+
+    public struct CheckPointBoard
+    {
         public string[] Board { get; set; }
         public string[] BackUpBoard { get; set; }
-        public (string, int)[] Inventory { get; set; }
+        public int[] GoldenKeys { get; set; }
         public Dictionary<string, Color> ThemePairs { get; set; }
         public bool IsClockwise { get; set; }
         public int Laps { get; set; }
         public TimeSpan Time { get; set; }
-
-        public CheckPoint(PollRequest[] requests, PollRequest[] islandRequests, 
-            PollRequest[] usedList, string[] board, string[] backUpBoard, 
-            (string, int)[] inventory, Dictionary<string, Color> themePairs, 
-            bool isClockwise, int laps, TimeSpan time)
-        {
-            Requests = requests;
-            IslandRequests = islandRequests;
-            UsedList = usedList;
-            Board = board;
-            BackUpBoard = backUpBoard;
-            ThemePairs = themePairs;
-            Inventory = inventory;
-            IsClockwise = isClockwise;
-            Laps = laps;
-            Time = time;
-        }
     }
 
     public static class SaveLoad
@@ -118,10 +106,10 @@ namespace GoldenKeyMK3.Script
             return themes;
         }
 
-        public static CheckPoint LoadCheckPoint()
+        public static CheckPointQueues LoadQueues()
         {
             // Read log file
-            var r = new StreamReader("checkpoint.yml");
+            var r = new StreamReader("cp_queues.yml");
             var data = r.ReadToEnd();
             r.Close();
             
@@ -129,31 +117,80 @@ namespace GoldenKeyMK3.Script
             var deserializer = new DeserializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
-            var checkpoint = deserializer.Deserialize<CheckPoint>(data);
+            var checkPointQueues = deserializer.Deserialize<CheckPointQueues>(data);
 
-            return checkpoint;
+            return checkPointQueues;
+        }
+        
+        public static CheckPointBoard LoadBoard()
+        {
+            // Read log file
+            var r = new StreamReader("cp_board.yml");
+            var data = r.ReadToEnd();
+            r.Close();
+            
+            // Deserialize
+            var deserializer = new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .Build();
+            var checkPointBoard = deserializer.Deserialize<CheckPointBoard>(data);
+
+            return checkPointBoard;
         }
 
-        public static void SaveCheckPoint(PollRequest[] requests, PollRequest[] islandRequests, 
-            PollRequest[] usedList, string[] board, string[] backUpBoard, (string, int)[] inventory,
-            Dictionary<string, Color> themePairs, bool isClockwise, int laps, TimeSpan time)
+        public static void SaveQueues(IEnumerable<(string Name, string Theme, string Song, double Time)> requests, 
+            IEnumerable<(string Name, string Theme, string Song, double Time)> islandRequests,
+            IEnumerable<(string, string)> usedList, IEnumerable<(string, int)> inventory)
         {
             // Create Log File
-            var filename = $"checkpoint.yml";
-
-            var output = new CheckPoint(requests, islandRequests, usedList, board, 
-                backUpBoard, inventory, themePairs, isClockwise, laps, time);
+            var filename = "cp_queues.yml";
+            var checkPointQueues = new CheckPointQueues()
+            {
+                Requests = requests.Select(x => (x.Name, x.Theme, x.Song)).ToArray(),
+                IslandRequests = islandRequests.Select(x => (x.Name, x.Theme, x.Song)).ToArray(),
+                UsedList = usedList.ToArray(),
+                Inventory = inventory.ToArray()
+            };
 
             // Serialize Log
             var serializer = new SerializerBuilder()
                 .WithNamingConvention(CamelCaseNamingConvention.Instance)
                 .Build();
-            var optionList = serializer.Serialize(output);
+            var output = serializer.Serialize(checkPointQueues);
 
             // Write Log File
             using var file = File.Create(filename);
             var w = new StreamWriter(file);
-            w.Write(optionList);
+            w.Write(output);
+            w.Close();
+        }
+
+        public static void SaveBoard(string[] board, string[] backUpBoard, int[] goldenKeys,
+            Dictionary<string, Color> themePairs, bool isClockwise, int laps, TimeSpan time)
+        {
+            // Create Log File
+            var filename = "cp_board.yml";
+            var checkPointBoard = new CheckPointBoard()
+            {
+                Board = board,
+                BackUpBoard = backUpBoard,
+                GoldenKeys = goldenKeys,
+                ThemePairs = themePairs,
+                IsClockwise = isClockwise,
+                Laps = laps,
+                Time = time
+            };
+            
+            // Serialize Log
+            var serializer = new SerializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .Build();
+            var output = serializer.Serialize(checkPointBoard);
+
+            // Write Log File
+            using var file = File.Create(filename);
+            var w = new StreamWriter(file);
+            w.Write(output);
             w.Close();
         }
 

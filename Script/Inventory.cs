@@ -26,33 +26,35 @@ namespace GoldenKeyMK3.Script
         public Inventory()
         {
             ItemList = ImmutableList<(string, int)>.Empty;
-            _inventoryBox = new Rectangle(330, 190, 700, 180);
+            _inventoryBox = new Rectangle(1280, 254, 310, 240);
             _inventoryButton = LoadTexture("Resource/inventory.png");
 
             _page = Array.Empty<(string, int)>();
             _pageId = 0;
             _pageButton = new Rectangle[]
             {
-                new(330, 190, 50, 180),
-                new(980, 190, 50, 180)
+                new(1280, 444, 50, 50),
+                new(1540, 444, 50, 50)
             };
             _pageHover = new[] { false, false };
             
             _plusButton = new Rectangle[]
             {
-                new(880, 198, 40, 36),
-                new(880, 242, 40, 36),
-                new(880, 286, 40, 36)
+                new(1494, 262, 40, 36),
+                new(1494, 306, 40, 36),
+                new(1494, 350, 40, 36),
+                new(1494, 394, 40, 36)
             };
-            _plusHover = new[] { false, false, false };
+            _plusHover = new[] { false, false, false, false };
             
             _minusButton = new Rectangle[]
             {
-                new(930, 198, 40, 36),
-                new(930, 242, 40, 36),
-                new(930, 286, 40, 36)
+                new(1542, 262, 40, 36),
+                new(1542, 306, 40, 36),
+                new(1542, 350, 40, 36),
+                new(1542, 394, 40, 36),
             };
-            _minusHover = new[] { false, false, false };
+            _minusHover = new[] { false, false, false, false };
         }
 
         public void Draw()
@@ -66,14 +68,14 @@ namespace GoldenKeyMK3.Script
 
         public void Control(bool shutdownRequest)
         {
-            if (ItemList.Any()) _page = ItemList.Skip(_pageId * 3).Take(3).ToArray();
+            if (ItemList.Any()) _page = ItemList.Skip(_pageId * 4).Take(4).ToArray();
             for (var i = 0; i < 2; i++)
                 _pageHover[i] = Ui.IsHovering(_pageButton[i], !shutdownRequest);
 
             if (_pageHover[0] && IsMouseButtonPressed(0))
-                _pageId = _pageId == 0 ? ItemList.Count / 3 : _pageId - 1;
+                _pageId = _pageId == 0 ? (int)Math.Ceiling(ItemList.Count / 4.0f) - 1 : _pageId - 1;
             if (_pageHover[1] && IsMouseButtonPressed(0))
-                _pageId = _pageId == ItemList.Count / 3 ? 0 : _pageId + 1;
+                _pageId = _pageId == (int)Math.Ceiling(ItemList.Count / 4.0f) - 1 ? 0 : _pageId + 1;
 
             for (var i = 0; i < _page.Length; i++)
             {
@@ -125,7 +127,7 @@ namespace GoldenKeyMK3.Script
                 ItemList = ItemList.Insert(i, (x.Name, x.Count - 1));
             }
 
-            if (_pageId > ItemList.Count / 3) _pageId = ItemList.Count / 3;
+            if (_pageId > (int)Math.Ceiling(ItemList.Count / 4.0f) - 1) _pageId = (int)Math.Ceiling(ItemList.Count / 4.0f) - 1;
         }
 
         private void Plus(string item)
@@ -152,14 +154,16 @@ namespace GoldenKeyMK3.Script
         {
             for (var i = 0; i < 2; i++)
                 if (_pageHover[i]) DrawRectangleRec(_pageButton[i], Color.DARKPURPLE);
-            DrawTexture(_inventoryButton, 330, 190, Color.WHITE);
+            DrawTexture(_inventoryButton, 1280, 254, Color.WHITE);
             
             for (var i = 0; i < _page.Length; i++)
             {
-                var pos = new Vector2(388, 198 + 44 * i);
+                var pos = new Vector2(1288, 262 + 44 * i);
+                BeginScissorMode(1280, 258 + 44 * i, 206, 44);
                 DrawTextEx(Ui.Galmuri36,
                     _page[i].Name.Contains("[1회]") ? _page[i].Name : $"{_page[i].Name} * {_page[i].Count}", 
                     pos, 36, 0, Color.WHITE);
+                EndScissorMode();
                 
                 if (_plusHover[i]) DrawRectangleRec(_plusButton[i], Color.DARKPURPLE);
                 if (_minusHover[i]) DrawRectangleRec(_minusButton[i], Color.DARKPURPLE);
@@ -168,8 +172,8 @@ namespace GoldenKeyMK3.Script
                 Ui.DrawTextCentered(_minusButton[i], Ui.Galmuri24, "-1", 24, Color.WHITE);
             }
             
-            Ui.DrawTextCentered(new Rectangle(380, 330, 600, 40), Ui.Galmuri36,
-                $"페이지 {_pageId + 1} / {ItemList.Count / 3 + 1}", 36, Color.WHITE);
+            Ui.DrawTextCentered(new Rectangle(1330, 444, 210, 50), Ui.Galmuri36,
+                $"페이지 {_pageId + 1} / {(int)Math.Ceiling(ItemList.Count / 4.0f)}", 36, Color.WHITE);
         }
     }
 }

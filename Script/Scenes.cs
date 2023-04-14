@@ -99,33 +99,6 @@ namespace GoldenKeyMK3.Script
                     break;
             }
 
-            /*
-            if (!shutdownRequest && _current > Scene.Load)
-            {
-                ControlTimer(shutdownRequest);
-                switch ((KeyboardKey)GetKeyPressed())
-                {
-                    case KeyboardKey.KEY_F1:
-                        _current = Scene.Wheel;
-                        break;
-                    case KeyboardKey.KEY_F2:
-                        _current = Scene.Poll;
-                        break;
-                    case KeyboardKey.KEY_F4:
-                        _current = Scene.Dice;
-                        break;
-                    case KeyboardKey.KEY_F10:
-                        _board.Shuffle(_isClockwise);
-                        break;
-                    case KeyboardKey.KEY_F11:
-                        _board.AddKey(_isClockwise);
-                        break;
-                    case KeyboardKey.KEY_F12:
-                        _board.Restore();
-                        break;
-                }
-            }*/
-
             if (!shutdownRequest) switch (_current)
             {
                 case Scene.Login:

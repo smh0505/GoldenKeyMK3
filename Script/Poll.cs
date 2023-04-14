@@ -11,36 +11,6 @@ namespace GoldenKeyMK3.Script
         Active,
         Result
     }
-    
-    public struct PollRequest
-    {
-        public string Name { get; set; }
-        public string Theme { get; set; }
-        public string Song { get; set; }
-        public double Timestamp { get; set; }
-        
-        public PollRequest(string name, string theme, string song, double timestamp)
-        {
-            Name = name;
-            Theme = theme;
-            Song = song;
-            Timestamp = timestamp;
-        }
-    }
-
-    public struct PollResponse
-    {
-        public string Name { get; set; }
-        public string Song { get; set; }
-        public bool IsSuccessful { get; set; }
-
-        public PollResponse(string name, string song, bool isSuccessful)
-        {
-            Name = name;
-            Song = song;
-            IsSuccessful = isSuccessful;
-        }
-    }
 
     public class Poll : IDisposable
     {
@@ -48,10 +18,10 @@ namespace GoldenKeyMK3.Script
         private readonly Inventory _inventory;
         public PollState State;
 
-        public ImmutableList<PollRequest> Requests;
-        public ImmutableList<PollRequest> IslandRequests;
-        public ImmutableList<PollRequest> UsedList;
-        public ImmutableList<PollResponse> Sequence;
+        public ImmutableList<(string Name, string Theme, string Song, double Time)> Requests;
+        public ImmutableList<(string Name, string Theme, string Song, double Time)> IslandRequests;
+        public ImmutableList<(string Name, string Song)> UsedList;
+        public ImmutableList<(string Name, ChatState Response)> Sequence;
         
         public string Target;
         private Dictionary<string, Color> _themePairs;
@@ -60,8 +30,8 @@ namespace GoldenKeyMK3.Script
         private readonly Texture2D _alert;
         private readonly Texture2D _result;
 
-        private List<PollRequest> _temp;
-        private PollRequest _current;
+        private List<(string Name, string Theme, string Song, double Time)> _temp;
+        private (string Name, string Theme, string Song, double Time) _current;
 
         private readonly Rectangle[] _pollButton;
         private readonly bool[] _pollHover;
@@ -80,20 +50,20 @@ namespace GoldenKeyMK3.Script
             _inventory = inventory;
             _rnd = new Random();
             
-            Requests = ImmutableList<PollRequest>.Empty;
-            IslandRequests = ImmutableList<PollRequest>.Empty;
-            UsedList = ImmutableList<PollRequest>.Empty;
-            Sequence = ImmutableList<PollResponse>.Empty;
+            Requests = ImmutableList<(string, string, string, double)>.Empty;
+            IslandRequests = ImmutableList<(string, string, string, double)>.Empty;
+            UsedList = ImmutableList<(string, string)>.Empty;
+            Sequence = ImmutableList<(string, ChatState)>.Empty;
             
             _scene = LoadTexture("Resource/poll.png");
             _alert = LoadTexture("Resource/alert.png");
             _result = LoadTexture("Resource/result.png");
 
-            _temp = new List<PollRequest>();
+            _temp = new List<(string, string, string, double)>();
             State = PollState.Idle;
             Target = string.Empty;
             _themePairs = new Dictionary<string, Color>();
-            _current = new PollRequest();
+            _current = (string.Empty, string.Empty, string.Empty, 0);
             
             _pollHover = new[] { false, false, false };
             _pollButton = new Rectangle[]
@@ -119,8 +89,7 @@ namespace GoldenKeyMK3.Script
             
             if (FindAllSongs(Target).Any()) DrawPoll();
             DrawRequests();
-            DrawUsedList();
-            DrawSequence();
+            DrawUsedList(); 
             if (State != PollState.Idle) DrawResult();
         }
 
@@ -154,7 +123,7 @@ namespace GoldenKeyMK3.Script
                 for (var i = 0; i < requests.Length; i++)
                 {
                     var pos = new Vector2(344, 260 + _yPos + 30 * i);
-                    DrawTextEx(Ui.Galmuri24, requests[i].Song, pos, 24, 0, Color.BLACK);
+                    DrawTextEx(Ui.Galmuri24, requests[i].Item3, pos, 24, 0, Color.BLACK);
                 }
                 EndScissorMode();
             }
@@ -184,16 +153,23 @@ namespace GoldenKeyMK3.Script
             EndScissorMode();
         }
 
-        private void DrawSequence()
+        public void DrawSequence()
         {
-            var responses = Sequence.TakeLast(10).ToArray();
+            var responses = Sequence.ToArray();
             
-            BeginScissorMode(966, 254, 622, 240);
+            BeginScissorMode(1080, 254, 200, 240);
             for (var i = 0; i < responses.Length; i++)
             {
-                var pos = new Vector2(966, 254 + 24 * i);
-                DrawRectangle((int)pos.X, (int)pos.Y, 622, 24, responses[i].IsSuccessful ? Color.BLUE : Color.RED);
-                DrawTextEx(Ui.Galmuri24, $"{responses[i].Name} => {responses[i].Song}", pos, 24, 0, Color.WHITE);
+                var pos = new Vector2(1080, 254 + 24 * i);
+                DrawRectangle((int)pos.X, (int)pos.Y, 200, 24, 
+                    responses[i].Response switch
+                    {
+                        ChatState.Successful => Color.BLUE,
+                        ChatState.Failed => Color.RED,
+                        ChatState.Reconnecting => Color.PURPLE,
+                        _ => Color.BLACK
+                    });
+                DrawTextEx(Ui.Galmuri24, responses[i].Name, pos, 24, 0, Color.WHITE);
             }
             EndScissorMode();
         }
@@ -228,9 +204,9 @@ namespace GoldenKeyMK3.Script
         public void Update(Dictionary<string, Color> themePairs)
             => _themePairs = new Dictionary<string, Color>(themePairs);
 
-        public IEnumerable<PollRequest> FindAllSongs(string theme)
+        public IEnumerable<(string, string, string, double)> FindAllSongs(string theme)
         {
-            var output = new List<PollRequest>();
+            var output = new List<(string, string, string, double)>();
             output.AddRange(IslandRequests.FindAll(x => x.Theme == theme));
             output.AddRange(Requests.FindAll(x => x.Theme == theme));
             return output;
@@ -247,17 +223,17 @@ namespace GoldenKeyMK3.Script
                 {
                     case PollState.Idle:
                         State = PollState.Active;
-                        _temp = new List<PollRequest>(FindAllSongs(Target));
+                        _temp = new List<(string, string, string, double)>(FindAllSongs(Target));
                         break;
                     case PollState.Active:
                         State = PollState.Result;
                         break;
                     case PollState.Result:
                         State = PollState.Idle;
-                        UsedList = UsedList.Add(_current);
+                        UsedList = UsedList.Add((_current.Name, _current.Song));
                         Requests = Requests.RemoveAll(x => x.Name == _current.Name);
                         IslandRequests = IslandRequests.RemoveAll(x => x.Name == _current.Name);
-                        _current = new PollRequest();
+                        _current = (string.Empty, string.Empty, string.Empty, 0);
                         _inventory.RemoveItems();
                         break;
                 }
@@ -270,7 +246,7 @@ namespace GoldenKeyMK3.Script
                 State = PollState.Idle;
         }
 
-        private List<PollRequest> VertMarquee(IReadOnlyCollection<PollRequest> requests, float height, ref float y, ref int head)
+        private static List<T> VertMarquee<T>(IReadOnlyCollection<T> requests, float height, ref float y, ref int head)
         {
             var count = (int)Math.Ceiling(height / 30.0f);
             if (requests.Count >= count)
@@ -284,7 +260,7 @@ namespace GoldenKeyMK3.Script
             }
             else y = head = 0;
             
-            var output = requests.Skip(_idx).Take(count + 1).ToList();
+            var output = requests.Skip(head).Take(count + 1).ToList();
             if (requests.Count >= count && output.Count < count + 1)
                 output.AddRange(requests.Take(count + 1 - output.Count));
             return output;

@@ -45,8 +45,11 @@ namespace GoldenKeyMK3.Script
             var recoverColor = _recoverHover
                 ? RecoverGame ? Color.BLUE : Color.RED
                 : RecoverGame ? Fade(Color.BLUE, 0.7f) : Fade(Color.RED, 0.7f);
-            DrawRectangleRec(_recoverButton, recoverColor);
-            Ui.DrawTextCentered(_recoverButton, Ui.Galmuri48, "복구하기", 48, Color.BLACK);
+            if (File.Exists("cp_board.yml") && File.Exists("cp_queues.yml"))
+            {
+                DrawRectangleRec(_recoverButton, recoverColor);
+                Ui.DrawTextCentered(_recoverButton, Ui.Galmuri48, "복구하기", 48, Color.BLACK);
+            }
             
             DrawTexture(_scene, 0, 0, Color.WHITE);
             if (_failed) DrawAlert();
@@ -65,7 +68,8 @@ namespace GoldenKeyMK3.Script
             if (_copyHover && IsMouseButtonPressed(0))
                 _input = GetClipboardText_();
 
-            _recoverHover = File.Exists("checkpoint.yml") && Ui.IsHovering(_recoverButton, !shutdownRequest);
+            _recoverHover = File.Exists("cp_board.yml") && File.Exists("cp_queues.yml") &&
+                            Ui.IsHovering(_recoverButton, !shutdownRequest);
             if (_recoverHover && IsMouseButtonPressed(0))
                 RecoverGame = !RecoverGame;
 

@@ -15,7 +15,7 @@ namespace GoldenKeyMK3.Script
             _shutdownRequest = _shutdownResponse = false;
 
             SetConfigFlags(ConfigFlags.FLAG_WINDOW_UNDECORATED);
-            InitWindow(1920, 1081, "황금열쇠 MK3 Ver.2.0");
+            InitWindow(1920, 1081, "황금열쇠 MK3 Ver.2.1");
             SetTargetFPS(GetMonitorRefreshRate(GetCurrentMonitor()));
             HideCursor();
             

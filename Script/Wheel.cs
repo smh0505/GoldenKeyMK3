@@ -39,7 +39,7 @@ namespace GoldenKeyMK3.Script
             _startAngle = 180;
             _theta = 3000.0f;
             _radius = 250.0f;
-            _center = new Vector2(680, 640);
+            _center = new Vector2(680, 540);
 
             _buttonText = new Dictionary<WheelState, string>()
             {
@@ -57,14 +57,12 @@ namespace GoldenKeyMK3.Script
 
         public void Draw()
         {
-            _inventory.Draw();
-            
             if (Sum > 0)
             {
                 DrawSectors();
                 DrawLabels();
 
-                Vector2[] vtx = { new(670, 380), new(680, 400), new(690, 380) };
+                Vector2[] vtx = { new(670, 280), new(680, 300), new(690, 280) };
                 DrawTriangle(vtx[0], vtx[1], vtx[2], Color.BLACK);
             }
             if (_state == WheelState.Result) DrawResult();
@@ -91,8 +89,6 @@ namespace GoldenKeyMK3.Script
                 _inventory.AddItem(target.Name);
                 RemovePanel(target);
             }
-            
-            _inventory.Control(shutdownRequest);
         }
 
         public void Dispose()

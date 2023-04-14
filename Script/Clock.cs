@@ -10,7 +10,7 @@ namespace GoldenKeyMK3.Script
         private bool _isTicking;
 
         public int Idx;
-        private double _offset;
+        public TimeSpan Offset;
         public TimeSpan TimeSpan;
 
         private readonly string[] _laps;
@@ -29,7 +29,7 @@ namespace GoldenKeyMK3.Script
             _isTicking = false;
             
             Idx = 0;
-            _offset = 0;
+            Offset = TimeSpan.Zero;
             TimeSpan = TimeSpan.Zero;
 
             _laps = new[] { "1", "2", "3", "B" };
@@ -77,7 +77,7 @@ namespace GoldenKeyMK3.Script
 
         public void Control(bool shutdownRequest)
         {
-            if (_isTicking) TimeSpan = _stopwatch.Elapsed + TimeSpan.FromSeconds(_offset);
+            if (_isTicking) TimeSpan = _stopwatch.Elapsed + Offset;
             
             for (var i = 0; i < 6; i++)
                 _buttonHover[i] = Ui.IsHovering(_buttons[i], !shutdownRequest);
@@ -89,7 +89,7 @@ namespace GoldenKeyMK3.Script
             if (_buttonHover[2] && IsMouseButtonPressed(0))
                 IsClockwise = !IsClockwise;
             if (_buttonHover[3] && IsMouseButtonPressed(0))
-                _offset += 60.0f;
+                Offset += TimeSpan.FromMinutes(1);
             if (_buttonHover[4] && IsMouseButtonPressed(0))
             {
                 _isTicking = !_isTicking;
@@ -97,7 +97,7 @@ namespace GoldenKeyMK3.Script
                 else _stopwatch.Stop();
             }
             if (_buttonHover[5] && IsMouseButtonPressed(0))
-                _offset -= Math.Min(60, TimeSpan.TotalSeconds);
+                Offset -= TimeSpan.FromSeconds(Math.Min(60, TimeSpan.TotalSeconds));
         }
 
         public void Dispose()

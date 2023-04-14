@@ -4,6 +4,13 @@ using static Raylib_cs.Raylib;
 
 namespace GoldenKeyMK3.Script
 {
+    public enum ChatState
+    {
+        Successful = 0,
+        Failed,
+        Reconnecting
+    }
+    
     public class Chat : IDisposable
     {
         private readonly Poll _poll;
@@ -23,17 +30,22 @@ namespace GoldenKeyMK3.Script
         {
             using (_client = new WebsocketClient(new Uri("wss://irc-ws.chat.twitch.tv:443")))
             {
-                _client.ReconnectTimeout = null;
+                _client.ReconnectTimeout = TimeSpan.FromMinutes(15);
                 _client.MessageReceived.Subscribe(msg =>
                 {
                     if (msg.ToString().StartsWith("PING")) _client.Send("PONG :tmi.twitch.tv");
                     if (msg.ToString().Contains("!픽")) UpdateRequest(msg.ToString());
                 });
+                _client.ReconnectionHappened.Subscribe(info =>
+                {
+                    Console.WriteLine($"Reconnection Happened: {info.Type}");
+                    _poll.Sequence = _poll.Sequence.Add(("연결중...", ChatState.Reconnecting));
+                    _client.Send("CAP REQ :twitch.tv/commands twitch.tv/tags");
+                    _client.Send("NICK justinfan3649");
+                    _client.Send("JOIN #arpa__");
+                });
                 
                 await _client.Start();
-                _client.Send("CAP REQ :twitch.tv/commands twitch.tv/tags");
-                _client.Send("NICK justinfan5678");
-                _client.Send("JOIN #arpa__");
                 _exitEvent.WaitOne();
             }
         }
@@ -63,23 +75,23 @@ namespace GoldenKeyMK3.Script
             var cp2 = !_poll.UsedList.Select(x => x.Name).Contains(name);
 
             var cp3 = island 
-                ? !(GetTime() - _poll.Requests.FindLast(x => x.Name == name).Timestamp < 30)
-                : !(GetTime() - _poll.IslandRequests.FindLast(x => x.Name == name).Timestamp < 30);
+                ? !(GetTime() - _poll.Requests.FindLast(x => x.Name == name).Time < 30)
+                : !(GetTime() - _poll.IslandRequests.FindLast(x => x.Name == name).Time < 30);
 
             var isSuccessful = cp1 && cp2 && cp3;
-            _poll.Sequence = _poll.Sequence.Add(new PollResponse(name, song, isSuccessful));
-            if (_poll.Sequence.Count > 50) _poll.Sequence = _poll.Sequence.RemoveAt(0);
+            _poll.Sequence = _poll.Sequence.Add((name, isSuccessful ? ChatState.Successful : ChatState.Failed));
+            if (_poll.Sequence.Count > 10) _poll.Sequence = _poll.Sequence.RemoveAt(0);
 
             if (!isSuccessful) return;
             if (!island)
             {
-                _poll.Requests = _poll.Requests.Add(new PollRequest(name, theme, song, GetTime()));
+                _poll.Requests = _poll.Requests.Add((name, theme, song, GetTime()));
                 if (_poll.Requests.Count(x => x.Name == name) > 3) 
                     _poll.Requests = _poll.Requests.Remove(_poll.Requests.First(x => x.Name == name));
             }
             else
             {
-                _poll.IslandRequests = _poll.IslandRequests.Add(new PollRequest(name, theme, song, GetTime()));
+                _poll.IslandRequests = _poll.IslandRequests.Add((name, theme, song, GetTime()));
                 if (_poll.IslandRequests.Count(x => x.Name == name) > 1)
                     _poll.IslandRequests = _poll.IslandRequests.Remove(_poll.IslandRequests.First(x => x.Name == name));
             }

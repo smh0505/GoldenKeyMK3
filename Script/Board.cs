@@ -1,5 +1,4 @@
-﻿using System.Collections.Immutable;
-using Raylib_cs;
+﻿using Raylib_cs;
 using static Raylib_cs.Raylib;
 
 namespace GoldenKeyMK3.Script
@@ -109,9 +108,9 @@ namespace GoldenKeyMK3.Script
             {
                 { "디맥섬", LoadTexture("Resource/DJMAX.png") },
                 { "투온섬", LoadTexture("Resource/EZ2ON.png") },
-                { "CiRCLE", LoadTexture("Resource/circle.png") },
-                { "화성", LoadTexture("Resource/mars.png") },
-                { "이세카이 트럭", LoadTexture("Resource/truck.png") }
+                { "뱅섬", LoadTexture("Resource/circle.png") },
+                { "식스타섬", LoadTexture("Resource/mars.png") },
+                { "프세카섬", LoadTexture("Resource/truck.png") }
             };
             _freePairs = new Dictionary<string, Texture2D>
             {
@@ -137,6 +136,8 @@ namespace GoldenKeyMK3.Script
             DrawBoard();
             DrawHover();
             _clock.Draw();
+            _poll.DrawSequence();
+            _inventory.Draw();
 
             switch (State)
             {
@@ -155,6 +156,7 @@ namespace GoldenKeyMK3.Script
         {
             ControlHover(shutdownRequest, ref _poll.Target);
             _clock.Control(shutdownRequest);
+            _inventory.Control(shutdownRequest);
 
             if (MenuOpen) _menu.Control(shutdownRequest); 
             else switch (State)
@@ -173,15 +175,12 @@ namespace GoldenKeyMK3.Script
             _wheel.Panels = panels;
             _donation.Connect(payload);
             _chat.Connect();
-            if (File.Exists("checkpoint.yml") && restoreGame) RestoreGame();
+            if (restoreGame) RestoreGame();
         }
 
         public void Dispose()
         {
-            SaveLoad.SaveCheckPoint(_poll.Requests.ToArray(), _poll.IslandRequests.ToArray(), 
-                _poll.UsedList.ToArray(), _currBoard, _backup,
-                _inventory.ItemList.ToArray(), _themePairs, _clock.IsClockwise,
-                _clock.Idx, _clock.TimeSpan);
+            SaveGame();
             
             _inventory.Dispose();
             _wheel.Dispose();
@@ -292,19 +291,31 @@ namespace GoldenKeyMK3.Script
             }
         }
 
+        private void SaveGame()
+        {
+            SaveLoad.SaveBoard(_currBoard, _backup, _goldenKeys.ToArray(), _themePairs, 
+                _clock.IsClockwise, _clock.Idx, _clock.TimeSpan);
+            SaveLoad.SaveQueues(_poll.Requests, _poll.IslandRequests, _poll.UsedList, _inventory.ItemList);
+        }
+
         private void RestoreGame()
         {
-            var temp = SaveLoad.LoadCheckPoint();
-            _poll.Requests = temp.Requests.ToImmutableList();
-            _poll.IslandRequests = temp.IslandRequests.ToImmutableList();
-            _poll.UsedList = temp.UsedList.ToImmutableList();
-            _currBoard = temp.Board;
-            _backup = temp.BackUpBoard;
-            _themePairs = temp.ThemePairs;
-            _inventory.ItemList = temp.Inventory.ToImmutableList();
-            _clock.IsClockwise = temp.IsClockwise;
-            _clock.Idx = temp.Laps;
-            _clock.TimeSpan = temp.Time;
+            var board = SaveLoad.LoadBoard();
+            _currBoard = board.Board;
+            _backup = board.BackUpBoard;
+            _goldenKeys = board.GoldenKeys.ToList();
+            _themePairs = board.ThemePairs;
+            _clock.IsClockwise = board.IsClockwise;
+            _clock.Idx = board.Laps;
+            _clock.Offset = board.Time;
+
+            var queues = SaveLoad.LoadQueues();
+            _poll.Requests =
+                _poll.Requests.AddRange(queues.Requests.Select(x => (x.Name, x.Theme, x.Song, (double)0)));
+            _poll.IslandRequests =
+                _poll.IslandRequests.AddRange(queues.IslandRequests.Select(x => (x.Name, x.Theme, x.Song, (double)0)));
+            _poll.UsedList = _poll.UsedList.AddRange(queues.UsedList);
+            _inventory.ItemList = _inventory.ItemList.AddRange(queues.Inventory);
         }
         
         // UIs

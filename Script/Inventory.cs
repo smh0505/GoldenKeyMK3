@@ -146,7 +146,8 @@ namespace GoldenKeyMK3.Script
                 ItemList = ItemList.Insert(i, (x.Name, x.Count - 1));
             }
 
-            _pageId = Math.Clamp(_pageId, 0, (int)Math.Ceiling(ItemList.Count / 4.0f) - 1);
+            var newMax = (int)Math.Ceiling(ItemList.Count / 4.0f);
+            _pageId = Math.Clamp(_pageId, 0, newMax == 0 ? 0 : newMax - 1);
         }
 
         private void Plus(string item)
@@ -165,7 +166,8 @@ namespace GoldenKeyMK3.Script
 
             ItemList = ItemList.Remove(y);
             if (y.Count > 1) ItemList = ItemList.Insert(x, (y.Name, y.Count - 1));
-            _pageId = Math.Clamp(_pageId, 0, (int)Math.Ceiling(ItemList.Count / 4.0f) - 1);
+            var newMax = (int)Math.Ceiling(ItemList.Count / 4.0f);
+            _pageId = Math.Clamp(_pageId, 0, newMax == 0 ? 0 : newMax - 1);
         }
 
         // UIs

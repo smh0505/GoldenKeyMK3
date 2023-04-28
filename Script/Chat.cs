@@ -69,19 +69,25 @@ namespace GoldenKeyMK3.Script
             var re = new Regex(@"^(?:@(?<tags>(?:.+?=.*?)(?:;.+?=.*?)*) )?(?::(?<source>[^ ]+?) )?(?<command>[0-9]{3}|[a-zA-Z]+)(?: (?<params>.+?))?(?: :(?<content>.*))?$");
             var objects = re.Match(msg).Groups;
 
+            // CheckPoint 1: if the format is valid and the number is in range
+            // Format: !픽 [int: 1 to 25, excluding 13] [string]
             var cp1 = IsValid(objects["content"].ToString(), out var theme, out var song, out var island);
 
+            // CheckPoint 2: if the name is not in _poll.UsedList
             var name = GetUsername(objects["tags"].ToString(), objects["source"].ToString());
             var cp2 = !_poll.UsedList.Select(x => x.Name).Contains(name);
 
-            var cp3 = island 
-                ? !(GetTime() - _poll.Requests.FindLast(x => x.Name == name).Time < 30)
-                : !(GetTime() - _poll.IslandRequests.FindLast(x => x.Name == name).Time < 30);
+            // CheckPoint 3: if the timestamp from the last request has the difference > 30 sec
+            var cp3 = island
+                ? GetTime() - _poll.IslandRequests.FindLast(x => x.Name == name).Time > 30
+                : GetTime() - _poll.Requests.FindLast(x => x.Name == name).Time > 30;
 
+            // Check if all checkpoints are true
             var isSuccessful = cp1 && cp2 && cp3;
             _poll.Sequence = _poll.Sequence.Add((name, isSuccessful ? ChatState.Successful : ChatState.Failed));
             if (_poll.Sequence.Count > 10) _poll.Sequence = _poll.Sequence.RemoveAt(0);
 
+            // If all true, then insert the song into _poll.(Island)Requests
             if (!isSuccessful) return;
             if (!island)
             {
@@ -103,9 +109,9 @@ namespace GoldenKeyMK3.Script
 
             theme = song = string.Empty;
             island = false;
-            if (content.Length < 3) return false;
-            if (!int.TryParse(content[1], out var idx)) return false;
-            if (idx is <= 0 or 13 or > 25) return false;
+            if (content.Length < 3) return false;   // Format incorrect
+            if (!int.TryParse(content[1], out var idx)) return false;   // Index not int
+            if (idx is <= 0 or 13 or > 25) return false;    // Index out of range
 
             theme = _board[idx];
             song = content[2][..^1];

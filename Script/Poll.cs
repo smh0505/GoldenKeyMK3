@@ -36,14 +36,11 @@ namespace GoldenKeyMK3.Script
         private readonly Rectangle[] _pollButton;
         private readonly bool[] _pollHover;
 
-        private float _yPos;
-        private int _idx;
-
-        private float _yPos2;
-        private int _idx2;
-
-        private float _xPos;
-        private float _xPos2;
+        private int _requestsIdx;
+        private int _usedListIdx;
+        private Vector2 _requestsPos;
+        private Vector2 _usedListPos;
+        private Vector2 _horizontalPos;
 
         public Poll(Inventory inventory)
         {
@@ -73,14 +70,10 @@ namespace GoldenKeyMK3.Script
                 new(668, 840, 160, 48)
             };
 
-            _yPos = 0;
-            _idx = 0;
-
-            _yPos2 = 0;
-            _idx2 = 0;
-
-            _xPos = 0;
-            _xPos2 = 0;
+            _requestsIdx = _usedListIdx = 0;
+            _requestsPos = new Vector2(340, 260);
+            _usedListPos = new Vector2(340, 546);
+            _horizontalPos = new Vector2(352, 314);
         }
         
         public void Draw()
@@ -111,53 +104,48 @@ namespace GoldenKeyMK3.Script
 
         private void DrawRequests()
         {
-            if (FindAllSongs(Target).Any())
+            var songList = FindAllSongs(Target).ToArray();
+            if (songList.Any())
             {
-                var color = _themePairs.TryGetValue(Target, out var value) ? Color.WHITE : value;
+                var color = _themePairs.TryGetValue(Target, out var value) ? value : Color.WHITE;
                 DrawRectangle(332, 192, 622, 62, color);
                 DrawTextEx(Ui.Galmuri48, Target.Replace("_", " "), new Vector2(344, 199), 48, 0, Color.BLACK);
 
-                var requests = VertMarquee(FindAllSongs(Target).ToList(), 286, ref _yPos, ref _idx).ToArray();
-                        
-                BeginScissorMode(332, 254, 622, 286);
-                for (var i = 0; i < requests.Length; i++)
-                {
-                    var pos = new Vector2(344, 260 + _yPos + 30 * i);
-                    DrawTextEx(Ui.Galmuri24, requests[i].Item3, pos, 24, 0, Color.BLACK);
-                }
-                EndScissorMode();
+                var refPoint = new Vector2(340, 260);
+                var box = new Rectangle(332, 254, 622, 286);
+                Ui.ScrollList(box, Ui.Galmuri24, songList.Select(x => x.Item3).ToArray(), 24, 30, ref _requestsIdx,
+                    ref _requestsPos, in refPoint, Color.BLACK);
             }
             else DrawTexture(_alert, 332, 192, Color.WHITE);
         }
 
         private void DrawResult()
         {
+            var refPoint = new Vector2(352, 314);
+            
             DrawTexture(_result, 332, 254, Color.WHITE);
             BeginScissorMode(332, 254, 622, 286);
-            if (State == PollState.Result) HorizonMarquee(_current.Song);
-            else DrawTextEx(Ui.Galmuri48, _current.Song, new Vector2(352, 314), 48, 0, Color.WHITE);
+            
+            if (State == PollState.Result) 
+                Ui.ScrollText(Ui.Galmuri48, _current.Song, 48, 622, ref _horizontalPos, in refPoint, Color.YELLOW);
+            else DrawTextEx(Ui.Galmuri48, _current.Song, refPoint, 48, 0, Color.WHITE);
             DrawTextEx(Ui.Galmuri24, _current.Name, new Vector2(402, 380), 24, 0, Color.WHITE);
+            
             EndScissorMode();
         }
         
         private void DrawUsedList()
         {
-            var usedList = VertMarquee(UsedList, 288, ref _yPos2, ref _idx2).ToArray();
-            
-            BeginScissorMode(332, 540, 622, 288);
-            for (var i = 0; i < usedList.Length; i++)
-            {
-                var pos = new Vector2(340, 546 + _yPos + 30 * i);
-                DrawTextEx(Ui.Galmuri24, $"{usedList[i].Name} => {usedList[i].Song}", pos, 24, 0, Color.WHITE);
-            }
-            EndScissorMode();
+            var refPoint = new Vector2(340, 546);
+            var box = new Rectangle(332, 540, 622, 288);
+            Ui.ScrollList(box, Ui.Galmuri24, UsedList.Select(x => $"{x.Name} => {x.Song}").ToArray(), 24, 30,
+                ref _usedListIdx, ref _usedListPos, in refPoint, Color.WHITE);
         }
 
         public void DrawSequence()
         {
             var responses = Sequence.ToArray();
             
-            BeginScissorMode(1080, 254, 200, 240);
             for (var i = 0; i < responses.Length; i++)
             {
                 var pos = new Vector2(1080, 254 + 24 * i);
@@ -171,7 +159,6 @@ namespace GoldenKeyMK3.Script
                     });
                 DrawTextEx(Ui.Galmuri24, responses[i].Name, pos, 24, 0, Color.WHITE);
             }
-            EndScissorMode();
         }
 
         private void DrawPoll()
@@ -244,45 +231,6 @@ namespace GoldenKeyMK3.Script
                 State = PollState.Active;
             if (_pollHover[2] && IsMouseButtonPressed(0))
                 State = PollState.Idle;
-        }
-
-        private static List<T> VertMarquee<T>(IReadOnlyCollection<T> requests, float height, ref float y, ref int head)
-        {
-            var count = (int)Math.Ceiling(height / 30.0f);
-            if (requests.Count >= count)
-            {
-                y -= 120.0f / GetFPS();
-                if (y <= -30.0f)
-                {
-                    head = (head + 1) % requests.Count;
-                    y = 0;
-                }
-            }
-            else y = head = 0;
-            
-            var output = requests.Skip(head).Take(count + 1).ToList();
-            if (requests.Count >= count && output.Count < count + 1)
-                output.AddRange(requests.Take(count + 1 - output.Count));
-            return output;
-        }
-
-        private void HorizonMarquee(string song)
-        {
-            var size = MeasureTextEx(Ui.Galmuri48, song, 48, 0).X;
-            if (size > 622)
-            {
-                _xPos -= 120.0f / GetFPS();
-                _xPos2 = _xPos + size + 36.0f;
-                if (_xPos <= -size) _xPos = _xPos2;
-            }
-            else
-            {
-                _xPos = 0;
-                _xPos2 = _xPos + size + 36.0f;
-            }
-            
-            DrawTextEx(Ui.Galmuri48, song, new Vector2(352 + _xPos, 314), 48, 0, Color.YELLOW);
-            if (size > 622) DrawTextEx(Ui.Galmuri48, song, new Vector2(352 + _xPos2, 314), 48, 0, Color.YELLOW);
         }
     }
 }

@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
-    <Version>2.1</Version>
+    <Version>2.2</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 

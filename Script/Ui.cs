@@ -40,6 +40,44 @@ namespace GoldenKeyMK3.Script
             }
         }
 
+        public static void ScrollText(Font font, string text, float fontSize, float width, ref Vector2 pos,
+            in Vector2 refPoint, Color color)
+        {
+            var size = MeasureTextEx(font, text, fontSize, 0).X;
+            pos = size >= width ? pos with { X = pos.X - 60.0f / GetFPS() } : refPoint;
+            if (pos.X < refPoint.X - size) pos.X += size + 36.0f;
+            DrawTextEx(font, text, pos, fontSize, 0, color);
+            if (size >= width) DrawTextEx(font, text, pos with { X = pos.X + size + 36.0f }, fontSize, 0, color);
+        }
+
+        public static void ScrollList(Rectangle box, Font font, string[] texts, float fontSize,
+            float unitHeight, ref int idx, ref Vector2 startPt, in Vector2 refPt, Color color)
+        {
+            var count = (int)Math.Ceiling(box.height / unitHeight);
+            startPt = texts.Length >= count ? startPt with { Y = startPt.Y - 60.0f / GetFPS() } : refPt;
+            if (texts.Length >= count)
+            {
+                if (startPt.Y <= refPt.Y - unitHeight)
+                {
+                    idx = (idx + 1) % texts.Length;
+                    startPt.Y += unitHeight;
+                }
+            }
+            else idx = 0;
+            
+            var items = texts.Skip(idx).Take(count + 1).ToList();
+            if (texts.Length >= count && items.Count < count + 1)
+                items.AddRange(texts.Take(count + 1 - items.Count));
+            
+            BeginScissorMode((int)box.x, (int)box.y, (int)box.width, (int)box.height);
+            for (var i = 0; i < items.Count; i++)
+            {
+                var pos = startPt with { Y = startPt.Y + unitHeight * i };
+                DrawTextEx(font, items[i], pos, fontSize, 0, color);
+            }
+            EndScissorMode();
+        }
+        
         public static void Dispose()
         {
             UnloadFont(Galmuri24);

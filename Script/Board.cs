@@ -1,4 +1,4 @@
-﻿using Raylib_cs;
+using Raylib_cs;
 using static Raylib_cs.Raylib;
 
 namespace GoldenKeyMK3.Script
@@ -316,6 +316,8 @@ namespace GoldenKeyMK3.Script
                 _poll.IslandRequests.AddRange(queues.IslandRequests.Select(x => (x.Name, x.Theme, x.Song, (double)0)));
             _poll.UsedList = _poll.UsedList.AddRange(queues.UsedList);
             _inventory.ItemList = _inventory.ItemList.AddRange(queues.Inventory);
+            
+            _poll.Update(_themePairs);
         }
         
         // UIs

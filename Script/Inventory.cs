@@ -23,6 +23,9 @@ namespace GoldenKeyMK3.Script
         private readonly Rectangle[] _minusButton;
         private readonly bool[] _minusHover;
 
+        private readonly Rectangle[] _counter;
+        private readonly Vector2[] _pos;
+
         public Inventory()
         {
             ItemList = ImmutableList<(string, int)>.Empty;
@@ -52,9 +55,24 @@ namespace GoldenKeyMK3.Script
                 new(1542, 262, 40, 36),
                 new(1542, 306, 40, 36),
                 new(1542, 350, 40, 36),
-                new(1542, 394, 40, 36),
+                new(1542, 394, 40, 36)
             };
             _minusHover = new[] { false, false, false, false };
+
+            _counter = new Rectangle[]
+            {
+                new(1288, 258, 40, 44),
+                new(1288, 302, 40, 44),
+                new(1288, 346, 40, 44),
+                new(1288, 390, 40, 44)
+            };
+            _pos = new Vector2[]
+            {
+                new(1288, 268),
+                new(1288, 312),
+                new(1288, 356),
+                new(1288, 400)
+            };
         }
 
         public void Draw()
@@ -103,8 +121,9 @@ namespace GoldenKeyMK3.Script
                 var i = ItemList.FindIndex(x => x.Name == newItem);
                 if (i != -1)
                 {
+                    var temp = ItemList[i];
                     ItemList = ItemList.RemoveAt(i);
-                    ItemList = ItemList.Insert(i, (ItemList[i].Name, ItemList[i].Count + 3));
+                    ItemList = ItemList.Insert(i, (temp.Name, temp.Count + 3));
                 }
                 else ItemList = ItemList.Add((newItem, 3));
             }
@@ -127,7 +146,7 @@ namespace GoldenKeyMK3.Script
                 ItemList = ItemList.Insert(i, (x.Name, x.Count - 1));
             }
 
-            if (_pageId > (int)Math.Ceiling(ItemList.Count / 4.0f) - 1) _pageId = (int)Math.Ceiling(ItemList.Count / 4.0f) - 1;
+            _pageId = Math.Clamp(_pageId, 0, (int)Math.Ceiling(ItemList.Count / 4.0f) - 1);
         }
 
         private void Plus(string item)
@@ -146,6 +165,7 @@ namespace GoldenKeyMK3.Script
 
             ItemList = ItemList.Remove(y);
             if (y.Count > 1) ItemList = ItemList.Insert(x, (y.Name, y.Count - 1));
+            _pageId = Math.Clamp(_pageId, 0, (int)Math.Ceiling(ItemList.Count / 4.0f) - 1);
         }
 
         // UIs
@@ -158,12 +178,21 @@ namespace GoldenKeyMK3.Script
             
             for (var i = 0; i < _page.Length; i++)
             {
-                var pos = new Vector2(1288, 262 + 44 * i);
-                BeginScissorMode(1280, 258 + 44 * i, 206, 44);
-                DrawTextEx(Ui.Galmuri36,
-                    _page[i].Name.Contains("[1회]") ? _page[i].Name : $"{_page[i].Name} * {_page[i].Count}", 
-                    pos, 36, 0, Color.WHITE);
-                EndScissorMode();
+                var refPoint = new Vector2(1288, 268 + 44 * i);
+                if (_page[i].Name.Contains("[1회]"))
+                {
+                    BeginScissorMode(1288, 258 + 44 * i, 198, 44);
+                    Ui.ScrollText(Ui.Galmuri24, _page[i].Name, 24, 206, ref _pos[i], in refPoint, Color.WHITE);
+                    EndScissorMode();
+                }
+                else
+                {
+                    refPoint.X += 40;
+                    Ui.DrawTextCentered(_counter[i], Ui.Galmuri36, _page[i].Count.ToString(), 36, Color.WHITE);
+                    BeginScissorMode(1328, 258 + 44 * i, 158, 44);
+                    Ui.ScrollText(Ui.Galmuri24, _page[i].Name, 24, 158, ref _pos[i], in refPoint, Color.WHITE);
+                    EndScissorMode();
+                }
                 
                 if (_plusHover[i]) DrawRectangleRec(_plusButton[i], Color.DARKPURPLE);
                 if (_minusHover[i]) DrawRectangleRec(_minusButton[i], Color.DARKPURPLE);

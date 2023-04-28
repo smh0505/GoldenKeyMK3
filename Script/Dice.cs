@@ -1,4 +1,4 @@
-﻿namespace GoldenKeyMK3.Script
+namespace GoldenKeyMK3.Script
 {
     public class Dice : IGameObject
     {
